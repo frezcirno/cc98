@@ -15,105 +15,111 @@
         yycolumn += yyleng;
 %}
 
-decimal ([-+])?(0|[1-9][0-9]*)
-binary 0[bB][01]+
-octal 0[0-7]+
-hex 0[xX][0-9a-fA-F]+
-FLOAT [0-9]+\.[0-9]+([eE][+-]?[0-9]+)?
-ID [a-zA-Z_][a-zA-Z0-9_]*
+D      [0-9]
+E      [Ee][+-]?{D}+
+FS     (f|F|l|L)
+IS     (u|U|l|L)*
+
+/* my extension */
+binary      0[bB][01]+{IS}?
+octal       0[0-7]+{IS}?
+decimal     (0|[1-9]{D}*){IS}?
+hex         0[xX][a-fA-F0-9]+{IS}?
+float1      {D}+"."{D}*({E})?{FS}?
+float2      {D}*"."{D}+({E})?{FS}?
+float3      {D}+{E}{FS}?
+identifier  [a-zA-Z_][a-zA-Z0-9_]*
+string      L?\"(\\.|[^\\"])*\"
+char        L?'(\\.|[^\\'])+'
 
 %%
 
-";" {return SEMICOLON; }
-"," {return COMMA; }
-"=" {return EQUAL; }
-"==" {return DOUBLE_EQUAL; }
-"!=" { return NE; }
-"<" {return LT; }
-">" { return GT; }
-"<=" { return LE; }
-">=" { return GE; }
-"\+" { return PLUS; }
-"-" { return MINUS; }
-"\*" { return ASTERISK; }
-"/" { return SLASH; }
-"%" { return PERCENT; }
-"\^" { return CARET; }
-"!" { return EXCLAMATION; }
-"&" { return AMPERSAND; }
-"|" { return VERTICAL; }
-"<<" { return DOUBLE_LESS; }
-">>" { return DOUBLE_GREATER; }
-"$" { return DOLLAR; }
-"#" { return SHARP; }
-":" { return COLON; }
-"::" { return DOUBLE_COLON; }
-"\?" { return QUESTION; }
-"@" { return AT; }
-"\." { return DOT; }
-"(" { return LPAREN; }
-")" { return RPAREN; }
-"{" { return LBRACE; }
-"}" { return RBRACE; }
-"\[" { return LBRACKET; }
-"\]" { return RBRACKET; }
-struct { return STRUCT; }
-if { return IF; }
-else { return ELSE; }
-while { return WHILE; }
-return { return RETURN; }
-void |
-char |
-short |
-int |
-long |
-float |
-double {
+"//".*      { /* eat up comment */ }
+"/*".*?"*/" { /* eat up comment */ }
+";"         { return SEMICOLON; }
+","         { return COMMA; }
+"="         { return EQUAL; }
+"=="        { return DOUBLE_EQUAL; }
+"!="        { return NE; }
+"<"         { return LT; }
+">"         { return GT; }
+"<="        { return LE; }
+">="        { return GE; }
+"\+"        { return PLUS; }
+"-"         { return MINUS; }
+"\*"        { return ASTERISK; }
+"/"         { return SLASH; }
+"%"         { return PERCENT; }
+"\^"        { return CARET; }
+"!"         { return EXCLAMATION; }
+"&"         { return AMPERSAND; }
+"|"         { return VERTICAL; }
+"<<"        { return DOUBLE_LESS; }
+">>"        { return DOUBLE_GREATER; }
+"$"         { return DOLLAR; }
+"#"         { return SHARP; }
+":"         { return COLON; }
+"::"        { return DOUBLE_COLON; }
+"\?"        { return QUESTION; }
+"@"         { return AT; }
+"\."        { return DOT; }
+"("         { return LPAREN; }
+")"         { return RPAREN; }
+"{"         { return LBRACE; }
+"}"         { return RBRACE; }
+"\["        { return LBRACKET; }
+"\]"        { return RBRACKET; }
+"struct"    { return STRUCT; }
+"if"        { return IF; }
+"else"      { return ELSE; }
+"while"     { return WHILE; }
+"return"    { return RETURN; }
+"void" |
+"char" |
+"short" |
+"int" |
+"long" |
+"float" |
+"double" {
     yylval->stringValue = strdup(yytext);
     return TYPE;
 }
-true |
-false {
-    yylval->intValue = strcmp(yytext, "true") == 0 ? 1 : 0;
+"true" |
+"false" {
+    // yylval->intValue = strcmp(yytext, "true") == 0 ? 1 : 0;
+    yylval->stringValue = strdup(yytext);
     return BOOL;
-}
-\'(\\.|[^\\'])\' {
-    yylval->intValue = yytext[1];
-    return CHAR;
 }
 {decimal} |
 {octal} |
 {hex} {
-    yylval->intValue = atoi(yytext);
+    yylval->stringValue = strdup(yytext);
     return INT;
 }
-{FLOAT} {
-    yylval->floatValue = atof(yytext);
+{float1} |
+{float2} |
+{float3} {
+    yylval->stringValue = strdup(yytext);
     return FLOAT;
 }
-{ID} {
+{identifier} {
     yylval->stringValue = strdup(yytext);
     return ID;
 }
-\"(\\.|[^\\"])*\" {
+{char} {
+    // yylval->intValue = yytext[1];
+    yylval->stringValue = strdup(yytext);
+    return CHAR;
+}
+{string} {
     yylval->stringValue = strdup(yytext);
     return STRING;
 }
-"//.*" {
-    /* eat up comment */
-}
-"/\*.*\*/" {
-    /* eat up comment */
-}
-[ \t\r] {
-    /* eat up whitespace */
-}
-\n {
-    yylineno++;
-    yycolumn = 1;
-}
+[ \t\n\f\r] { /* eat up whitespace */ }
 . {
-    yyerror(yylloc, yyextra, "invalid input");
+    char msg[256];
+    snprintf(msg, 256, "unexpected input: %s", yytext);
+    yyerror(yylloc, yyextra, msg);
 }
 
 %%

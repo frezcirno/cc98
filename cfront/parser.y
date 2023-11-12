@@ -51,7 +51,9 @@
 
 /* internal function prototype */
 %{
-    int yylex(YYSTYPE *yylval_param, YYLTYPE *yylloc_param, driver_t *driver);
+    static inline int yylex(YYSTYPE *yylval_param, YYLTYPE *yylloc_param, driver_t *driver) {
+        return yylex_orig(yylval_param, yylloc_param, driver->scanner);
+    }
 %}
 
 /* additional definitions and declarations that should be provided to other modules */
@@ -79,7 +81,7 @@
 %nonassoc INT BOOL CHAR FLOAT DOUBLE ID TYPE STRING
 
 /* the types */
-%type <node> Program ExtDefList ExtDef ExtDecList Specifier StructSpecifier OptTag Tag VarDec FunDec VarList ParamDec CompSt StmtList Stmt DefList Def DecList Dec Exp Args
+%type <node> Program ExtDefList ExtDef ExtDecList TypeSpec StructSpecifier OptTag Tag VarDecl FuncDecl ParamList ParamDec CompStmt StmtList Stmt DefList Def DecList Dec Exp Args
 %type <node> RelOp
 %type <intValue> INT BOOL
 %type <charValue> CHAR
@@ -97,18 +99,18 @@ Program : ExtDefList { $$ = make(N_PROGRAM); appendn($$, $1); driver->root = $$;
 ExtDefList : ExtDef ExtDefList { $$ = $2; prependn($$, $1); }
            | /* empty */ { $$ = make(N_EXTDEFLIST);}
            ;
-ExtDef : Specifier ExtDecList SEMICOLON { $$ = make(N_EXTDEF); appendn($$, $1); appendn($$, $2); append($$, N_SEMICOLON); }
-       | Specifier SEMICOLON { $$ = make(N_EXTDEF); appendn($$, $1); append($$, N_SEMICOLON); }
-       | Specifier FunDec CompSt { $$ = make(N_EXTDEF); appendn($$, $1); appendn($$, $2); appendn($$, $3); }
+ExtDef : TypeSpec ExtDecList SEMICOLON { $$ = make(N_EXTDEF); appendn($$, $1); appendn($$, $2); append($$, N_SEMICOLON); }
+       | TypeSpec SEMICOLON { $$ = make(N_EXTDEF); appendn($$, $1); append($$, N_SEMICOLON); }
+       | TypeSpec FuncDecl CompStmt { $$ = make(N_EXTDEF); appendn($$, $1); appendn($$, $2); appendn($$, $3); }
        ;
-ExtDecList : VarDec { $$ = make(N_EXTDECLIST); appendn($$, $1); }
-           | VarDec COMMA ExtDecList { $$ = $3; appendn($$, $1); append($$, N_COMMA); }
+ExtDecList : VarDecl { $$ = make(N_EXTDECLIST); appendn($$, $1); }
+           | VarDecl COMMA ExtDecList { $$ = $3; appendn($$, $1); append($$, N_COMMA); }
            ;
 
 // Specifiers
-Specifier : TYPE { $$ = make(N_SPECIFIER); appends($$, N_TYPE, $1); }
-          | StructSpecifier { $$ = make(N_SPECIFIER); appendn($$, $1); }
-          ;
+TypeSpec : TYPE { $$ = make(N_TYPESPEC); appends($$, N_TYPE, $1); }
+         | StructSpecifier { $$ = make(N_TYPESPEC); appendn($$, $1); }
+         ;
 StructSpecifier : STRUCT OptTag LBRACE DefList RBRACE { $$ = make(N_STRUCT_SPECIFIER); append($$, N_STRUCT); appendn($$, $2); append($$, N_LBRACE); appendn($$, $4); append($$, N_RBRACE); }
                 | STRUCT Tag { $$ = make(N_STRUCT_SPECIFIER); append($$, N_STRUCT); appendn($$, $2); }
                 ;
@@ -119,27 +121,28 @@ Tag : ID { $$ = make(N_TAG); appends($$, N_IDENTIFIER, $1); }
     ;
 
 // Declarators
-VarDec : ID { $$ = makes(N_IDENTIFIER, $1); }
-       | VarDec LBRACKET INT RBRACKET { appendn($$, $1); append($$, N_LBRACKET); append($$, N_LITERAL_INT); append($$, N_RBRACKET); }
-       ;
-FunDec : ID LPAREN VarList RPAREN { $$ = make(N_FUNDEC); appends($$, N_IDENTIFIER, $1); append($$, N_LPAREN); appendn($$, $3); append($$, N_RPAREN); }
-       | ID LPAREN RPAREN { $$ = make(N_FUNDEC); appends($$, N_IDENTIFIER, $1); append($$, N_LPAREN); append($$, N_RPAREN); }
-       ;
-VarList : ParamDec COMMA VarList { $$ = $3; prepend($$, N_COMMA); prependn($$, $1); }
-        | ParamDec { $$ = make(N_VARLIST); appendn($$, $1); }
+VarDecl : ID { $$ = make(N_VARDECL); appends($$, N_IDENTIFIER, $1); }
+        | ASTERISK VarDecl { $$ = make(N_VARDECL); append($$, N_ASTERISK); appendn($$, $2); }
+        | VarDecl LBRACKET INT RBRACKET { $$ = make(N_VARDECL); appendn($$, $1); append($$, N_LBRACKET); appendi($$, N_LITERAL_INT, $3); append($$, N_RBRACKET); }
         ;
-ParamDec : Specifier VarDec { $$ = make(N_PARAMDEC); appendn($$, $1); appendn($$, $2); }
+FuncDecl : ID LPAREN ParamList RPAREN { $$ = make(N_FUNCDECL); appends($$, N_IDENTIFIER, $1); append($$, N_LPAREN); appendn($$, $3); append($$, N_RPAREN); }
+         | ID LPAREN RPAREN { $$ = make(N_FUNCDECL); appends($$, N_IDENTIFIER, $1); append($$, N_LPAREN); append($$, N_RPAREN); }
+         ;
+ParamList : ParamDec COMMA ParamList { $$ = $3; prepend($$, N_COMMA); prependn($$, $1); }
+          | ParamDec { $$ = make(N_PARAMLIST); appendn($$, $1); }
+          ;
+ParamDec : TypeSpec VarDecl { $$ = make(N_PARAMDEC); appendn($$, $1); appendn($$, $2); }
          ;
 
 // Statements
-CompSt : LBRACE DefList StmtList RBRACE { $$ = make(N_COMPST); append($$, N_LBRACE); appendn($$, $2); appendn($$, $3); append($$, N_RBRACE); }
-       | error RBRACE { yyerrok; driver->err_num++; $$ = make(N_COMPST); append($$, N_ERROR); append($$, N_RBRACE); }
-       ;
-StmtList : Stmt StmtList { $$ = $2; prependn($$, $2); }
+CompStmt : LBRACE DefList StmtList RBRACE { $$ = make(N_COMPSTMT); append($$, N_LBRACE); appendn($$, $2); appendn($$, $3); append($$, N_RBRACE); }
+         | error RBRACE { yyerrok; driver->err_num++; $$ = make(N_COMPSTMT); append($$, N_ERROR); append($$, N_RBRACE); }
+         ;
+StmtList : Stmt StmtList { $$ = $2; prependn($$, $1); }
          | /* empty */ { $$ = make(N_STMTLIST); }
          ;
 Stmt : Exp SEMICOLON { $$ = make(N_STMT); appendn($$, $1); append($$, N_SEMICOLON); }
-     | CompSt { $$ = make(N_STMT); appendn($$, $1); }
+     | CompStmt { $$ = make(N_STMT); appendn($$, $1); }
      | RETURN Exp SEMICOLON { $$ = make(N_STMT); append($$, N_RETURN); appendn($$, $2); append($$, N_SEMICOLON); }
      | IF LPAREN Exp RPAREN Stmt { $$ = make(N_STMT); append($$, N_IF); append($$, N_LPAREN); appendn($$, $3); append($$, N_RPAREN); appendn($$, $5); }
      | IF LPAREN Exp RPAREN Stmt ELSE Stmt { $$ = make(N_STMT); append($$, N_IF); append($$, N_LPAREN); appendn($$, $3); append($$, N_RPAREN); appendn($$, $5); append($$, N_ELSE); appendn($$, $7); }
@@ -157,13 +160,13 @@ Stmt : Exp SEMICOLON { $$ = make(N_STMT); appendn($$, $1); append($$, N_SEMICOLO
 DefList : Def DefList { $$ = $2; prependn($$, $1); }
         | /* empty */ { $$ = make(N_DEFLIST);}
         ;
-Def : Specifier DecList SEMICOLON { $$ = make(N_DEF); appendn($$, $1); appendn($$, $2); append($$, N_SEMICOLON); }
+Def : TypeSpec DecList SEMICOLON { $$ = make(N_DEF); appendn($$, $1); appendn($$, $2); append($$, N_SEMICOLON); }
     ;
 DecList : Dec { $$ = make(N_DECLIST); appendn($$, $1); }
         | Dec COMMA DecList { $$ = $3; prepend($$, N_COMMA); prependn($$, $1); }
         ;
-Dec : VarDec { $$ = make(N_DEC); appendn($$, $1); }
-    | VarDec EQUAL Exp { $$ = make(N_DEC); appendn($$, $1); append($$, N_EQUAL); appendn($$, $3); }
+Dec : VarDecl { $$ = make(N_DEC); appendn($$, $1); }
+    | VarDecl EQUAL Exp { $$ = make(N_DEC); appendn($$, $1); append($$, N_EQUAL); appendn($$, $3); }
     ;
 
 // Expressions
@@ -188,8 +191,7 @@ Exp : Exp EQUAL Exp { $$ = make(N_EXP); appendn($$, $1); append($$, N_EQUAL); ap
     | STRING { $$ = make(N_EXP); appends($$, N_LITERAL_STRING, $1); }
     | BOOL { $$ = make(N_EXP); appendi($$, N_LITERAL_BOOL, $1); }
     | CHAR { $$ = make(N_EXP); appendc($$, N_LITERAL_CHAR, $1); }
-    | LPAREN error RPAREN { yyerrok; driver->err_num++;
-                            $$ = make(N_EXP); append($$, N_LPAREN); append($$, N_ERROR); append($$, N_RPAREN); }
+    | error RPAREN { yyerrok; driver->err_num++; $$ = make(N_EXP); append($$, N_ERROR); }
     ;
 
 RelOp : DOUBLE_EQUAL { $$ = makes(N_RELOP, "DOUBLE_EQUAL"); }
@@ -206,12 +208,8 @@ Args : Exp COMMA Args { $$ = $3; prepend($$, N_COMMA); prependn($$, $1); }
 
 %%
 
-int yylex(YYSTYPE *yylval_param, YYLTYPE *yylloc_param, driver_t *driver) {
-    return yylex_orig(yylval_param, yylloc_param, driver->scanner);
-}
-
 void yyerror(YYLTYPE *loc, driver_t *driver, const char *msg) {
-    fprintf(stderr, "%s:%d error: %s\n", driver->file, loc->first_line, msg);
+    fprintf(stderr, "%s:%d:%d: error: %s\n", driver->file, loc->first_line, loc->first_column, msg);
 }
 
 int parse(const char *file, node_t **root) {
@@ -241,5 +239,5 @@ int parse(const char *file, node_t **root) {
         return rv;
     fclose(driver.fd);
 
-    return 0;
+    return driver.err_num;
 }

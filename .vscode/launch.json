@@ -20,7 +20,7 @@
             "name": "parser",
             "program": "${workspaceFolder}/cfront/parser",
             "args": [
-                "${workspaceFolder}/cfront/test/inputs/A-1.cmm"
+                "${workspaceFolder}/cfront/test/inputs/A-2.cmm"
             ],
             "cwd": "${workspaceFolder}"
         }
