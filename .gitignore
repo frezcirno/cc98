@@ -1,0 +1,10 @@
+
+*.o
+*.yy.c
+*.tab.c
+*.tab.h
+*.output
+*.dot
+*.png
+scanner
+parser
