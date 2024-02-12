@@ -1,0 +1,755 @@
+/* Procude a GLR parser */
+%glr-parser
+
+/* Create a parser-header files for flex */
+%defines
+
+/* Verbose error messages */
+%define parse.error verbose
+
+/* Enable location tracking */
+%locations
+
+/* Reentrant parser */
+%define api.pure
+
+/* extra parser yy*() function params */
+%parse-param { driver_t *driver }
+
+/* extra yylex() function params */
+%lex-param { driver_t *driver }
+
+%code requires {
+    #include <stdio.h>
+    #include <math.h>
+    #include <errno.h>
+    #include "ast.hpp"
+
+    typedef void* yyscan_t;
+
+    typedef struct driver {
+        const char *file;
+        FILE *fd;
+        Node *root;
+        int err_num;
+        yyscan_t scanner;
+    } driver_t;
+
+    int lexer_begin(driver_t *driver);
+
+    int lexer_end(driver_t *driver);
+}
+
+%union {
+    NodeKind nodeKind;
+    int iVal;
+    Node *node;
+    float fVal;
+    Pointer *pointer;
+    char *stringValue;
+    TypeName *typeName;
+    Statement *statement;
+    Identifier *identifier;
+    Enumerator *enumerator;
+    Declarator *declarator;
+    Expression *expression;
+    Designator *designator;
+    Initializer *initializer;
+    Declaration *declaration;
+    Designation *designation;
+    TypeSpecifier *typeSpecifier;
+    TypeQualifier *typeQualifier;
+    ParameterList *parameterList;
+    InitDeclarator *initDeclarator;
+    TranslationUnit *translationUnit;
+    UnaryExpression *unaryExpression;
+    StructDeclarator *structDeclarator;
+    DirectDeclarator *directDeclarator;
+    FunctionSpecifier *functionSpecifier;
+    PrimaryExpression *primaryExpression;
+    CompoundStatement *compoundStatement;
+    StructDeclaration *structDeclaration;
+    AbstractDeclarator *abstractDeclarator;
+    AlignmentSpecifier *alignmentSpecifier;
+    GenericAssociation *genericAssociation;
+    ParameterDeclaration *parameterDeclaration;
+    StorageClassSpecifier *storageClassSpecifier;
+    DeclarationSpecifiers *declarationSpecifiers;
+    Specifiers *specifierQualifierList;
+    StaticAssertDeclaration *staticAssertDeclaration;
+    DirectAbstractDeclarator *directAbstractDeclarator;
+    TypeSpecifierStructOrUnion::StructOrUnion structOrUnion;
+    std::vector<Node *> *nodeList;
+    std::vector<Expression *> *expressionList;
+    std::vector<Designator *> *designatorList;
+    std::vector<const char *> *identifierList;
+    std::vector<Enumerator *> *enumeratorList;
+    std::vector<Initializer *> *initializerList;
+    std::vector<Declaration *> *declarationList;
+    std::vector<TypeQualifier *> *typeQualifierList;
+    std::vector<InitDeclarator *> *initDeclaratorList;
+    std::vector<StructDeclarator *> *structDeclaratorList;
+    std::vector<StructDeclaration *> *structDeclarationList;
+    std::vector<GenericAssociation *> *genericAssociationList;
+    std::vector<AssignmentExpression *> *argumentExpressionList;
+    AssignmentExpression::AssignmentOperator assignmentOperator;
+}
+
+/* internal function prototype */
+%{
+    static inline int yylex(YYSTYPE *yylval_param, YYLTYPE *yylloc_param, driver_t *driver) {
+        return yylex_orig(yylval_param, yylloc_param, driver->scanner);
+    }
+%}
+
+/* additional definitions and declarations that should be provided to other modules */
+%code provides
+{
+    #define YY_DECL int yylex_orig(YYSTYPE* yylval_param, YYLTYPE* yylloc_param, yyscan_t yyscanner)
+    extern YY_DECL;
+
+    void yyerror(YYLTYPE *loc, void *driver, const char *msg);
+
+    int parse(const char *file, Node **root);
+
+    int sym_type(const char *);
+}
+
+/* the tokens */
+%token  IDENTIFIER I_CONSTANT F_CONSTANT STRING_LITERAL FUNC_NAME SIZEOF
+%token  PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
+%token  AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
+%token  SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
+%token  XOR_ASSIGN OR_ASSIGN
+%token  TYPEDEF_NAME ENUMERATION_CONSTANT
+
+%token  TYPEDEF EXTERN STATIC AUTO REGISTER INLINE
+%token  CONST RESTRICT VOLATILE
+%token  BOOL CHAR SHORT INT LONG SIGNED UNSIGNED FLOAT DOUBLE VOID
+%token  COMPLEX IMAGINARY
+%token  STRUCT UNION ENUM ELLIPSIS
+%token  CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
+%token  ALIGNAS ALIGNOF ATOMIC GENERIC NORETURN STATIC_ASSERT THREAD_LOCAL
+
+/* the types */
+%type <iVal> I_CONSTANT
+%type <fVal> F_CONSTANT
+%type <stringValue> IDENTIFIER STRING_LITERAL FUNC_NAME ENUMERATION_CONSTANT TYPEDEF_NAME
+%type <assignmentOperator> assignment_operator
+%type <typeQualifier> type_qualifier
+%type <typeQualifierList> type_qualifier_list
+%type <typeSpecifier> type_specifier atomic_type_specifier struct_or_union_specifier enum_specifier
+%type <storageClassSpecifier> storage_class_specifier
+%type <functionSpecifier> function_specifier
+%type <structOrUnion> struct_or_union
+%type <nodeKind> unary_operator
+%type <identifierList> identifier_list
+%type <specifierQualifierList> specifier_qualifier_list
+%type <declarationList> declaration_list
+%type <declaration> declaration
+%type <declarationSpecifiers> declaration_specifiers
+%type <expressionList> argument_expression_list
+%type <initDeclarator> init_declarator
+%type <initDeclaratorList> init_declarator_list
+%type <structDeclarationList> struct_declaration_list
+%type <structDeclaratorList> struct_declarator_list
+%type <enumerator> enumerator
+%type <enumeratorList> enumerator_list
+%type <initializerList> initializer_list
+%type <designatorList> designator_list
+%type <expression> expression postfix_expression unary_expression cast_expression multiplicative_expression additive_expression shift_expression relational_expression equality_expression and_expression exclusive_or_expression inclusive_or_expression logical_and_expression logical_or_expression conditional_expression assignment_expression constant_expression
+%type <primaryExpression> primary_expression constant string generic_selection
+%type <identifier> enumeration_constant
+%type <structDeclarator> struct_declarator
+%type <structDeclaration> struct_declaration
+%type <alignmentSpecifier> alignment_specifier
+%type <declarator> declarator
+%type <pointer> pointer
+%type <parameterList> parameter_type_list parameter_list
+%type <parameterDeclaration> parameter_declaration
+%type <typeName> type_name
+%type <abstractDeclarator> abstract_declarator
+%type <directAbstractDeclarator> direct_abstract_declarator
+%type <initializer> initializer
+%type <designator> designator
+%type <designation> designation
+%type <staticAssertDeclaration> static_assert_declaration
+%type <directDeclarator> direct_declarator
+%type <statement> statement labeled_statement expression_statement selection_statement iteration_statement jump_statement
+%type <compoundStatement> compound_statement
+%type <genericAssociation> generic_association
+%type <genericAssociationList> generic_assoc_list
+%type <node> block_item external_declaration function_definition
+%type <nodeList> block_item_list
+%type <translationUnit> translation_unit
+
+%start translation_unit
+
+%%
+
+primary_expression
+    : IDENTIFIER            { $$ = new Identifier($1); }
+    | constant
+    | string
+    | '(' expression ')'    { $$ = new ParenthesizedExpression($2); }
+    | generic_selection
+    ;
+
+constant
+    : I_CONSTANT        /* includes character_constant */           { $$ = new ConstantI($1); }
+    | F_CONSTANT                                                    { $$ = new ConstantF($1); }
+    | ENUMERATION_CONSTANT  /* after it has been defined as such */ { $$ = new EnumerationConstantUse($1); }
+    ;
+
+enumeration_constant        /* before it has been defined as such */
+    : IDENTIFIER        { $$ = new Identifier($1); }
+    ;
+
+string
+    : STRING_LITERAL    { $$ = new StringLiteral($1); }
+    | FUNC_NAME         { $$ = new FuncName(); }
+    ;
+
+generic_selection
+    : GENERIC '(' assignment_expression ',' generic_assoc_list ')' { $$ = new GenericSelection($3, $5); }
+    ;
+
+generic_assoc_list
+    : generic_association                           { $$ = new std::vector<GenericAssociation *>(); $$->push_back($1); }
+    | generic_assoc_list ',' generic_association    { $$ = $1; $$->push_back($3); }
+    ;
+
+generic_association
+    : type_name ':' assignment_expression { $$ = new GenericAssociation($1, $3); }
+    | DEFAULT ':' assignment_expression   { $$ = new GenericAssociation(nullptr, $3); }
+    ;
+
+postfix_expression
+    : primary_expression                                    { $$ = $1; }
+    | postfix_expression '[' expression ']'                 { $$ = new PostfixExpressionIndexOp($1, $3); }
+    | postfix_expression '(' ')'                            { $$ = new PostfixExpressionCallOp($1); }
+    | postfix_expression '(' argument_expression_list ')'   { $$ = new PostfixExpressionCallOp($1, $3); }
+    | postfix_expression '.' IDENTIFIER                     { $$ = new PostfixExpressionDotOp($1, $3); }
+    | postfix_expression PTR_OP IDENTIFIER                  { $$ = new PostfixExpressionPtrOp($1, $3); }
+    | postfix_expression INC_OP                             { $$ = new PostfixExpressionIncOp($1); }
+    | postfix_expression DEC_OP                             { $$ = new PostfixExpressionDecOp($1); }
+    | '(' type_name ')' '{' initializer_list '}'            { $$ = new PostfixExpressionCastOp($2, $5); }
+    | '(' type_name ')' '{' initializer_list ',' '}'        { $$ = new PostfixExpressionCastOp($2, $5); }
+    ;
+
+argument_expression_list
+    : assignment_expression                                 { $$ = new std::vector<Expression *>(); $$->push_back($1); }
+    | argument_expression_list ',' assignment_expression    { $$ = $1; $$->push_back($3); }
+    ;
+
+unary_expression
+    : postfix_expression
+    | INC_OP  unary_expression          { $$ = new UnaryExpressionExpr(U_INC_OP, $2); }
+    | DEC_OP  unary_expression          { $$ = new UnaryExpressionExpr(U_DEC_OP, $2); }
+    | unary_operator cast_expression    { $$ = new UnaryExpressionExpr($1, $2); }
+    | SIZEOF  unary_expression          { $$ = new UnaryExpressionExpr(U_SIZEOF_OP, $2); }
+    | SIZEOF  '(' type_name ')'         { $$ = new UnaryExpressionOnType(U_SIZEOF_OP, $3); }
+    | ALIGNOF '(' type_name ')'         { $$ = new UnaryExpressionOnType(U_ALIGNOF_OP, $3); }
+    ;
+
+unary_operator
+    : '&' { $$ = U_ADDR_OP; }
+    | '*' { $$ = U_DEREF_OP; }
+    | '+' { $$ = U_POS_OP; }
+    | '-' { $$ = U_NEG_OP; }
+    | '~' { $$ = U_REV_OP; }
+    | '!' { $$ = U_NOT_OP; }
+    ;
+
+cast_expression
+    : unary_expression
+    | '(' type_name ')' cast_expression { $$ = new CastExpression($2, $4); }
+    ;
+
+multiplicative_expression
+    : cast_expression
+    | multiplicative_expression '*' cast_expression { $$ = new ArithmeticExpression($1, ArithmeticExpression::A_MUL_OP, $3); }
+    | multiplicative_expression '/' cast_expression { $$ = new ArithmeticExpression($1, ArithmeticExpression::A_DIV_OP, $3); }
+    | multiplicative_expression '%' cast_expression { $$ = new ArithmeticExpression($1, ArithmeticExpression::A_MOD_OP, $3); }
+    ;
+
+additive_expression
+    : multiplicative_expression
+    | additive_expression '+' multiplicative_expression { $$ = new ArithmeticExpression($1, ArithmeticExpression::A_ADD_OP, $3); }
+    | additive_expression '-' multiplicative_expression { $$ = new ArithmeticExpression($1, ArithmeticExpression::A_SUB_OP, $3); }
+    ;
+
+shift_expression
+    : additive_expression
+    | shift_expression LEFT_OP additive_expression  { $$ = new ArithmeticExpression($1, ArithmeticExpression::A_LEFT_OP, $3); }
+    | shift_expression RIGHT_OP additive_expression { $$ = new ArithmeticExpression($1, ArithmeticExpression::A_RIGHT_OP, $3); }
+    ;
+
+relational_expression
+    : shift_expression
+    | relational_expression '<' shift_expression    { $$ = new ArithmeticExpression($1, ArithmeticExpression::R_LT_OP, $3); }
+    | relational_expression '>' shift_expression    { $$ = new ArithmeticExpression($1, ArithmeticExpression::R_GT_OP, $3); }
+    | relational_expression LE_OP shift_expression  { $$ = new ArithmeticExpression($1, ArithmeticExpression::R_LE_OP, $3); }
+    | relational_expression GE_OP shift_expression  { $$ = new ArithmeticExpression($1, ArithmeticExpression::R_GE_OP, $3); }
+    ;
+
+equality_expression
+    : relational_expression
+    | equality_expression EQ_OP relational_expression   { $$ = new ArithmeticExpression($1, ArithmeticExpression::E_EQ_OP, $3); }
+    | equality_expression NE_OP relational_expression   { $$ = new ArithmeticExpression($1, ArithmeticExpression::E_NE_OP, $3); }
+    ;
+
+and_expression
+    : equality_expression
+    | and_expression '&' equality_expression    { $$ = new ArithmeticExpression($1, ArithmeticExpression::B_AND_OP, $3); }
+    ;
+
+exclusive_or_expression
+    : and_expression
+    | exclusive_or_expression '^' and_expression    { $$ = new ArithmeticExpression($1, ArithmeticExpression::B_XOR_OP, $3); }
+    ;
+
+inclusive_or_expression
+    : exclusive_or_expression
+    | inclusive_or_expression '|' exclusive_or_expression   { $$ = new ArithmeticExpression($1, ArithmeticExpression::B_OR_OP, $3); }
+    ;
+
+logical_and_expression
+    : inclusive_or_expression
+    | logical_and_expression AND_OP inclusive_or_expression { $$ = new ArithmeticExpression($1, ArithmeticExpression::L_AND_OP, $3); }
+    ;
+
+logical_or_expression
+    : logical_and_expression
+    | logical_or_expression OR_OP logical_and_expression    { $$ = new ArithmeticExpression($1, ArithmeticExpression::L_OR_OP, $3); }
+    ;
+
+conditional_expression
+    : logical_or_expression
+    | logical_or_expression '?' expression ':' conditional_expression   { $$ = new ConditionalExpression($1, $3, $5); }
+    ;
+
+assignment_expression
+    : conditional_expression
+    | unary_expression assignment_operator assignment_expression    { $$ = new AssignmentExpression($1, $2, $3); }
+    ;
+
+assignment_operator
+    : '='           { $$ = AssignmentExpression::ASSIGN; }
+    | MUL_ASSIGN    { $$ = AssignmentExpression::MUL_ASSIGN; }
+    | DIV_ASSIGN    { $$ = AssignmentExpression::DIV_ASSIGN; }
+    | MOD_ASSIGN    { $$ = AssignmentExpression::MOD_ASSIGN; }
+    | ADD_ASSIGN    { $$ = AssignmentExpression::ADD_ASSIGN; }
+    | SUB_ASSIGN    { $$ = AssignmentExpression::SUB_ASSIGN; }
+    | LEFT_ASSIGN   { $$ = AssignmentExpression::LEFT_ASSIGN; }
+    | RIGHT_ASSIGN  { $$ = AssignmentExpression::RIGHT_ASSIGN; }
+    | AND_ASSIGN    { $$ = AssignmentExpression::AND_ASSIGN; }
+    | XOR_ASSIGN    { $$ = AssignmentExpression::XOR_ASSIGN; }
+    | OR_ASSIGN     { $$ = AssignmentExpression::OR_ASSIGN; }
+    ;
+
+expression
+    : assignment_expression
+    | expression ',' assignment_expression  { auto comma = static_cast<CommaExpression *>($1); comma->push_back($3); $$ = comma; }
+    ;
+
+constant_expression
+    : conditional_expression    /* with constraints */
+    ;
+
+declaration
+    // static const volatile int inline alignas(...) etc
+    // Mainly used for declare struct/union/enum
+    : declaration_specifiers                      ';'   { $$ = new DeclarationNormal($1); }
+    // int   i = 1;
+    // int   i, j = 0;
+    // int   i = 1, j = 0;
+    | declaration_specifiers init_declarator_list ';'   { $$ = new DeclarationNormal($1, $2); }
+    | static_assert_declaration                         { $$ = new DeclarationStaticAssert($1); }
+    ;
+
+declaration_specifiers
+    : storage_class_specifier declaration_specifiers    { $$ = $2; $$->push_back($1); }
+    | storage_class_specifier                           { $$ = new DeclarationSpecifiers(); $$->push_back($1); }
+    | type_specifier declaration_specifiers             { $$ = $2; $$->push_back($1); }
+    | type_specifier                                    { $$ = new DeclarationSpecifiers(); $$->push_back($1); }
+    | type_qualifier declaration_specifiers             { $$ = $2; $$->push_back($1); }
+    | type_qualifier                                    { $$ = new DeclarationSpecifiers(); $$->push_back($1); }
+    | function_specifier declaration_specifiers         { $$ = $2; $$->push_back($1); }
+    | function_specifier                                { $$ = new DeclarationSpecifiers(); $$->push_back($1); }
+    | alignment_specifier declaration_specifiers        { $$ = $2; $$->push_back($1); }
+    | alignment_specifier                               { $$ = new DeclarationSpecifiers(); $$->push_back($1); }
+    ;
+
+init_declarator_list
+    : init_declarator                           { $$ = new std::vector<InitDeclarator *>(); $$->push_back($1); }
+    | init_declarator_list ',' init_declarator  { $$ = $1; $$->push_back($3); }
+    ;
+
+init_declarator
+    // i = 1
+    // i = { 1, 2, 3 }
+    // i = { .a = 1, .b = 2 }
+    : declarator '=' initializer    { $$ = new InitDeclarator($1, $3); }
+    | declarator                    { $$ = new InitDeclarator($1); }
+    ;
+
+storage_class_specifier
+    : TYPEDEF       { $$ = new StorageClassSpecifier(StorageClassSpecifier::TYPEDEF); }
+    | EXTERN        { $$ = new StorageClassSpecifier(StorageClassSpecifier::EXTERN); }
+    | STATIC        { $$ = new StorageClassSpecifier(StorageClassSpecifier::STATIC); }
+    | THREAD_LOCAL  { $$ = new StorageClassSpecifier(StorageClassSpecifier::THREAD_LOCAL); }
+    | AUTO          { $$ = new StorageClassSpecifier(StorageClassSpecifier::AUTO); }
+    | REGISTER      { $$ = new StorageClassSpecifier(StorageClassSpecifier::REGISTER); }
+    ;
+
+type_specifier
+    : VOID                      { $$ = new TypeSpecifierBuiltin(TypeSpecifierBuiltin::VOID); }
+    | CHAR                      { $$ = new TypeSpecifierBuiltin(TypeSpecifierBuiltin::CHAR); }
+    | SHORT                     { $$ = new TypeSpecifierBuiltin(TypeSpecifierBuiltin::SHORT); }
+    | INT                       { $$ = new TypeSpecifierBuiltin(TypeSpecifierBuiltin::INT); }
+    | LONG                      { $$ = new TypeSpecifierBuiltin(TypeSpecifierBuiltin::LONG); }
+    | FLOAT                     { $$ = new TypeSpecifierBuiltin(TypeSpecifierBuiltin::FLOAT); }
+    | DOUBLE                    { $$ = new TypeSpecifierBuiltin(TypeSpecifierBuiltin::DOUBLE); }
+    | SIGNED                    { $$ = new TypeSpecifierBuiltin(TypeSpecifierBuiltin::SIGNED); }
+    | UNSIGNED                  { $$ = new TypeSpecifierBuiltin(TypeSpecifierBuiltin::UNSIGNED); }
+    | BOOL                      { $$ = new TypeSpecifierBuiltin(TypeSpecifierBuiltin::BOOL); }
+    | COMPLEX                   { $$ = new TypeSpecifierBuiltin(TypeSpecifierBuiltin::COMPLEX); }
+    | IMAGINARY                 { $$ = new TypeSpecifierBuiltin(TypeSpecifierBuiltin::IMAGINARY); }
+    | atomic_type_specifier
+    | struct_or_union_specifier
+    | enum_specifier
+    | TYPEDEF_NAME              { $$ = new TypeSpecifierTypedefName($1); }
+    ;
+
+struct_or_union_specifier
+    : struct_or_union            '{' struct_declaration_list '}'    { $$ = new TypeSpecifierStructOrUnion($1, nullptr, $3); }
+    | struct_or_union IDENTIFIER '{' struct_declaration_list '}'    { $$ = new TypeSpecifierStructOrUnion($1, $2, $4); }
+    | struct_or_union IDENTIFIER                                    { $$ = new TypeSpecifierStructOrUnion($1, $2); }
+    ;
+
+struct_or_union
+    : STRUCT    { $$ = TypeSpecifierStructOrUnion::S_STRUCT; }
+    | UNION     { $$ = TypeSpecifierStructOrUnion::S_UNION; }
+    ;
+
+struct_declaration_list
+    : struct_declaration                            { $$ = new std::vector<StructDeclaration*>(); $$->push_back($1); }
+    | struct_declaration_list struct_declaration    { $$ = $1; $$->push_back($2); }
+    ;
+
+struct_declaration
+    : specifier_qualifier_list ';'  /* for anonymous struct/union */    { $$ = new StructDeclarationNormal($1); }
+    | specifier_qualifier_list struct_declarator_list ';'               { $$ = new StructDeclarationNormal($1, $2); }
+    | static_assert_declaration                                         { $$ = new StructDeclarationStaticAssert($1); }
+    ;
+
+// const volatile sometype
+specifier_qualifier_list
+    : type_specifier specifier_qualifier_list   { $$ = $2; $$->push_back($1); }
+    | type_specifier                            { $$ = new Specifiers(); $$->push_back($1); }
+    | type_qualifier specifier_qualifier_list   { $$ = $2; $$->push_back($1); }
+    | type_qualifier                            { $$ = new Specifiers(); $$->push_back($1); }
+    ;
+
+struct_declarator_list
+    : struct_declarator                             { $$ = new std::vector<StructDeclarator *>(); $$->push_back($1); }
+    | struct_declarator_list ',' struct_declarator  { $$ = $1; $$->push_back($3); }
+    ;
+
+/* struct xx { int: 2; int y;  } */
+struct_declarator
+    :            ':' constant_expression    { $$ = new StructDeclarator(nullptr, $2); }
+    | declarator ':' constant_expression    { $$ = new StructDeclarator($1, $3); }
+    | declarator                            { $$ = new StructDeclarator($1); }
+    ;
+
+enum_specifier
+    : ENUM '{' enumerator_list '}'                  { $$ = new TypeSpecifierEnum($3); }
+    | ENUM '{' enumerator_list ',' '}'              { $$ = new TypeSpecifierEnum($3); }
+    | ENUM IDENTIFIER '{' enumerator_list '}'       { $$ = new TypeSpecifierEnum($2, $4); }
+    | ENUM IDENTIFIER '{' enumerator_list ',' '}'   { $$ = new TypeSpecifierEnum($2, $4); }
+    | ENUM IDENTIFIER                               { $$ = new TypeSpecifierEnum($2); }
+    ;
+
+enumerator_list
+    : enumerator                        { $$ = new std::vector<Enumerator *>(); $$->push_back($1); }
+    | enumerator_list ',' enumerator    { $$ = $1; $$->push_back($3); }
+    ;
+
+enumerator  /* identifiers must be flagged as ENUMERATION_CONSTANT */
+    : enumeration_constant '=' constant_expression  { $$ = new Enumerator($1, $3); }
+    | enumeration_constant                          { $$ = new Enumerator($1); }
+    ;
+
+atomic_type_specifier
+    : ATOMIC '(' type_name ')' { $$ = new TypeSpecifierAtomic($3); }
+    ;
+
+type_qualifier
+    : CONST     { $$ = new TypeQualifier(TypeQualifier::CONST); }
+    | RESTRICT  { $$ = new TypeQualifier(TypeQualifier::RESTRICT); }
+    | VOLATILE  { $$ = new TypeQualifier(TypeQualifier::VOLATILE); }
+    | ATOMIC    { $$ = new TypeQualifier(TypeQualifier::ATOMIC); }
+    ;
+
+function_specifier
+    : INLINE    { $$ = new FunctionSpecifier(FunctionSpecifier::INLINE); }
+    | NORETURN  { $$ = new FunctionSpecifier(FunctionSpecifier::NORETURN); }
+    ;
+
+alignment_specifier
+    : ALIGNAS '(' type_name ')'             { $$ = new AlignmentSpecifier($3); }
+    | ALIGNAS '(' constant_expression ')'   { $$ = new AlignmentSpecifier($3); }
+    ;
+
+
+declarator
+    // const volatile*  foo(int x[2], bool y)
+    : pointer direct_declarator     { $$ = new Declarator($1, $2); }
+    // x
+    // arr[3]
+    // foo(int a[3][4])
+    |         direct_declarator     { $$ = new Declarator(nullptr, $1); }
+    ;
+
+direct_declarator
+    : IDENTIFIER                    { $$ = new DirectDeclaratorIdentifier($1); }
+    | '(' declarator ')'            { $$ = new DirectDeclaratorParenthesized($2); }
+    | direct_declarator '[' ']'                                                     { $$ = new DirectDeclaratorArray($1); }
+    | direct_declarator '[' '*' ']'                                                 { $$ = new DirectDeclaratorArray($1, nullptr, nullptr, false, true); }
+    | direct_declarator '[' STATIC type_qualifier_list assignment_expression ']'    { $$ = new DirectDeclaratorArray($1, $4,      $5,      true); }
+    | direct_declarator '[' STATIC                     assignment_expression ']'    { $$ = new DirectDeclaratorArray($1, nullptr, $4,      true); }
+    | direct_declarator '[' type_qualifier_list '*' ']'                             { $$ = new DirectDeclaratorArray($1, $3,      nullptr, false, true); }
+    | direct_declarator '[' type_qualifier_list STATIC assignment_expression ']'    { $$ = new DirectDeclaratorArray($1, $3,      $5,      true); }
+    | direct_declarator '[' type_qualifier_list        assignment_expression ']'    { $$ = new DirectDeclaratorArray($1, $3,      $4); }
+    | direct_declarator '[' type_qualifier_list                              ']'    { $$ = new DirectDeclaratorArray($1, $3,      nullptr); }
+    | direct_declarator '['                            assignment_expression ']'    { $$ = new DirectDeclaratorArray($1, nullptr, $3); }
+    | direct_declarator '(' parameter_type_list ')'                                 { $$ = new DirectDeclaratorFunction($1, $3); }
+    | direct_declarator '(' ')'                                                     { $$ = new DirectDeclaratorFunction($1); }
+    | direct_declarator '(' identifier_list ')'                                     { $$ = new DirectDeclaratorFunction($1, $3); }
+    ;
+
+pointer
+    : '*' type_qualifier_list pointer   { $$ = new Pointer($2, $3); }
+    | '*' type_qualifier_list           { $$ = new Pointer($2); }
+    | '*' pointer                       { $$ = new Pointer(nullptr, $2); }
+    | '*'                               { $$ = new Pointer(); }
+    ;
+
+type_qualifier_list  // const volatile restrict atomic...
+    : type_qualifier                        { $$ = new std::vector<TypeQualifier *>(); $$->push_back($1); }
+    | type_qualifier_list type_qualifier    { $$ = $1; $$->push_back($2); }
+    ;
+
+parameter_type_list
+    // int x, bool y, ...
+    : parameter_list ',' ELLIPSIS   { $$ = $1; $1->setHasEllipsis(true); }
+    | parameter_list
+    ;
+
+parameter_list
+    : parameter_declaration                     { $$ = new ParameterList(); $$->push_back($1); }
+    | parameter_list ',' parameter_declaration  { $$ = $1; $$->push_back($3); }
+    ;
+
+parameter_declaration
+    // int x
+    : declaration_specifiers declarator             { $$ = new ParameterDeclarationDecl($1, $2); }
+    // int x[3][4]
+    | declaration_specifiers abstract_declarator    { $$ = new ParameterDeclarationAbstDecl($1, $2); }
+    // int
+    | declaration_specifiers                        { $$ = new ParameterDeclarationAnonymous($1); }
+    ;
+
+identifier_list
+    : IDENTIFIER                        { $$ = new std::vector<const char *>(); $$->push_back($1); }
+    | identifier_list ',' IDENTIFIER    { $$ = $1; $$->push_back($3); }
+    ;
+
+type_name
+    // const volatile sometype   *const*volatile*(*const [.])
+    : specifier_qualifier_list abstract_declarator  { $$ = new TypeName($1, $2); }
+    | specifier_qualifier_list                      { $$ = new TypeName($1); }
+    ;
+
+abstract_declarator
+    : pointer direct_abstract_declarator    { $$ = new AbstractDeclarator($1, $2); }
+    | pointer                               { $$ = new AbstractDeclarator($1); }
+    |         direct_abstract_declarator    { $$ = new AbstractDeclarator(nullptr, $1); }
+    ;
+
+direct_abstract_declarator
+    // (*foo)
+    : '(' abstract_declarator ')'               { $$ = new DirectAbstractDeclaratorParenthesized($2); }
+    |                            '[' ']'                                                    { $$ = new DirectAbstractDeclaratorArray(nullptr); }
+    |                            '[' '*' ']'                                                { $$ = new DirectAbstractDeclaratorArray(nullptr, true); }
+    |                            '[' STATIC type_qualifier_list assignment_expression ']'   { $$ = new DirectAbstractDeclaratorArray(nullptr, $3, $4, true); }
+    |                            '[' STATIC                     assignment_expression ']'   { $$ = new DirectAbstractDeclaratorArray(nullptr, nullptr, $3, true); }
+    |                            '[' type_qualifier_list STATIC assignment_expression ']'   { $$ = new DirectAbstractDeclaratorArray(nullptr, $2, $4, true); }
+    |                            '[' type_qualifier_list        assignment_expression ']'   { $$ = new DirectAbstractDeclaratorArray(nullptr, $2, $3); }
+    |                            '[' type_qualifier_list                              ']'   { $$ = new DirectAbstractDeclaratorArray(nullptr, $2); }
+    |                            '['                            assignment_expression ']'   { $$ = new DirectAbstractDeclaratorArray(nullptr, nullptr, $2); }
+    | direct_abstract_declarator '[' ']'                                                    { $$ = new DirectAbstractDeclaratorArray($1); }
+    | direct_abstract_declarator '[' '*' ']'                                                { $$ = new DirectAbstractDeclaratorArray($1, true); }
+    | direct_abstract_declarator '[' STATIC type_qualifier_list assignment_expression ']'   { $$ = new DirectAbstractDeclaratorArray($1, $4, $5, true); }
+    | direct_abstract_declarator '[' STATIC                     assignment_expression ']'   { $$ = new DirectAbstractDeclaratorArray($1, nullptr, $4, true); }
+    | direct_abstract_declarator '[' type_qualifier_list        assignment_expression ']'   { $$ = new DirectAbstractDeclaratorArray($1, $3, $4); }
+    | direct_abstract_declarator '[' type_qualifier_list STATIC assignment_expression ']'   { $$ = new DirectAbstractDeclaratorArray($1, $3, $5, true); }
+    | direct_abstract_declarator '[' type_qualifier_list                              ']'   { $$ = new DirectAbstractDeclaratorArray($1, $3, nullptr); }
+    | direct_abstract_declarator '['                            assignment_expression ']'   { $$ = new DirectAbstractDeclaratorArray($1, nullptr, $3); }
+    |                            '(' ')'                            { $$ = new DirectAbstractDeclaratorFunction(nullptr); }
+    |                            '(' parameter_type_list ')'        { $$ = new DirectAbstractDeclaratorFunction(nullptr, $2); }
+    // (*foo)(int x[2], bool y)
+    | direct_abstract_declarator '(' ')'                            { $$ = new DirectAbstractDeclaratorFunction($1); }
+    | direct_abstract_declarator '(' parameter_type_list ')'        { $$ = new DirectAbstractDeclaratorFunction($1, $3); }
+    ;
+
+initializer
+    : '{' initializer_list '}'      { $$ = new InitializerNested($2); }
+    | '{' initializer_list ',' '}'  { $$ = new InitializerNested($2); }
+    | assignment_expression         { $$ = new InitializerExpression($1); }
+    ;
+
+initializer_list
+    : designation initializer                       { $$ = new std::vector<Initializer *>(); $$->push_back($2); $2->designation = $1; }
+    |             initializer                       { $$ = new std::vector<Initializer *>(); $$->push_back($1); }
+    | initializer_list ',' designation initializer  { $$ = $1; $$->push_back($4); $4->designation = $3; }
+    | initializer_list ','             initializer  { $$ = $1; $$->push_back($3); }
+    ;
+
+designation
+    : designator_list '='           { $$ = new Designation($1); }
+    ;
+
+// Allow nested designators, e.g. .a[0].b[1] = 1
+designator_list
+    : designator                    { $$ = new std::vector<Designator *>(); $$->push_back($1); }
+    | designator_list designator    { $$ = $1; $$->push_back($2); }
+    ;
+
+designator
+    : '[' constant_expression ']'   { $$ = new DesignatorIndex($2); }
+    | '.' IDENTIFIER                { $$ = new DesignatorField($2); }
+    ;
+
+static_assert_declaration
+    : STATIC_ASSERT '(' constant_expression ',' STRING_LITERAL ')' ';'  { $$ = new StaticAssertDeclaration($3, $5); }
+    ;
+
+statement
+    : labeled_statement
+    | compound_statement    { $$ = $1; }
+    | expression_statement
+    | selection_statement
+    | iteration_statement
+    | jump_statement
+    ;
+
+labeled_statement
+    : IDENTIFIER ':' statement                  { $$ = new LabeledStatementIdentifier($1, $3); }
+    | CASE constant_expression ':' statement    { $$ = new LabeledStatementCase($2, $4); }
+    | DEFAULT ':' statement                     { $$ = new LabeledStatementDefault($3); }
+    ;
+
+compound_statement
+    : '{' '}'                   { $$ = new CompoundStatement(); }
+    | '{' block_item_list '}'   { $$ = new CompoundStatement($2); }
+    ;
+
+block_item_list
+    : block_item                    { $$ = new std::vector<Node *>(); $$->push_back($1); }
+    | block_item_list block_item    { $$ = $1; $$->push_back($2); }
+    ;
+
+block_item
+    : declaration   { $$ = $1; }
+    | statement     { $$ = $1; }
+    ;
+
+expression_statement
+    : ';'               { $$ = new ExpressionStatement(); }
+    | expression ';'    { $$ = new ExpressionStatement($1); }
+    ;
+
+selection_statement
+    : IF '(' expression ')' statement ELSE statement    { $$ = new SelectionStatementIf($3, $5, $7); }
+    | IF '(' expression ')' statement                   { $$ = new SelectionStatementIf($3, $5); }
+    | SWITCH '(' expression ')' statement               { $$ = new SelectionStatementSwitch($3, $5); }
+    ;
+
+iteration_statement
+    : WHILE '(' expression ')' statement                                            { $$ = new IterationStatementWhile($3, $5); }
+    | DO statement WHILE '(' expression ')' ';'                                     { $$ = new IterationStatementDoWhile($5, $2); }
+    | FOR '(' expression_statement expression_statement            ')' statement    { $$ = new IterationStatementFor($3, $4, nullptr, $6); }
+    | FOR '(' expression_statement expression_statement expression ')' statement    { $$ = new IterationStatementFor($3, $4, $5, $7); }
+    | FOR '(' declaration          expression_statement            ')' statement    { $$ = new IterationStatementFor($3, $4, nullptr, $6); }
+    | FOR '(' declaration          expression_statement expression ')' statement    { $$ = new IterationStatementFor($3, $4, $5, $7); }
+    ;
+
+jump_statement
+    : GOTO IDENTIFIER ';'       { $$ = new JumpStatementGoto($2); }
+    | CONTINUE ';'              { $$ = new JumpStatementContinue(); }
+    | BREAK ';'                 { $$ = new JumpStatementBreak(); }
+    | RETURN ';'                { $$ = new JumpStatementReturn(); }
+    | RETURN expression ';'     { $$ = new JumpStatementReturn($2); }
+    ;
+
+translation_unit
+    : external_declaration                  { driver->root = $$ = new TranslationUnit(); $$->push_back($1); }
+    | translation_unit external_declaration { $$ = $1; $$->push_back($2); }
+    ;
+
+external_declaration
+    : function_definition   { $$ = $1; }
+    | declaration           { $$ = $1; }
+    ;
+
+function_definition
+    : declaration_specifiers declarator declaration_list compound_statement { $$ = new FunctionDefinition($1, $2, $3, $4); }
+    | declaration_specifiers declarator                  compound_statement { $$ = new FunctionDefinition($1, $2, nullptr, $3); }
+    ;
+
+declaration_list
+    : declaration                   { $$ = new std::vector<Declaration *>(); $$->push_back($1); }
+    | declaration_list declaration  { $$ = $1; $$->push_back($2); }
+    ;
+%%
+
+void yyerror(YYLTYPE *loc, void *driver, const char *msg) {
+    fprintf(stderr, "%s:%d:%d: error: %s\n", ((driver_t *)driver)->file, loc->first_line, loc->first_column, msg);
+}
+
+int sym_type(const char *) {
+    return IDENTIFIER;
+}
+
+int parse(const char *file, Node **root) {
+    int rv;
+    driver_t driver;
+
+#ifdef DEBUG
+    yydebug = 1;
+#endif
+
+    driver.file = file;
+    driver.fd   = fopen(file, "r");
+    if (driver.fd == NULL)
+        return -ENOENT;
+
+    rv = lexer_begin(&driver);
+    if (rv != 0)
+        return rv;
+
+    rv = yyparse(&driver);
+    if (rv != 0)
+        return rv;
+    *root = driver.root;
+
+    rv = lexer_end(&driver);
+    if (rv != 0)
+        return rv;
+    fclose(driver.fd);
+
+    return driver.err_num;
+}

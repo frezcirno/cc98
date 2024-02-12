@@ -1,8 +1,14 @@
-#include "parser.tab.h"
+#include "parser.tab.hpp"
 #include <stdio.h>
 
-void yyerror(YYLTYPE *loc, driver_t *driver, const char *msg) {
-  fprintf(stderr, "%s:%d error: %s\n", driver->file, loc->first_line, msg);
+// stub function
+void yyerror(YYLTYPE *loc, void *driver, const char *msg) {
+  fprintf(stderr, "%s:%d error: %s\n", ((driver_t *)driver)->file, loc->first_line, msg);
+}
+
+// stub function
+int sym_type(const char *) {
+    return IDENTIFIER;
 }
 
 YYSTYPE yylval;

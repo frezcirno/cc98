@@ -1,3 +1,5 @@
+int MatrixMax(int a[3][4]);
+
 int MatrixMax(int a[3][4])
 {
     int i=0,j=0;

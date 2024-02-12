@@ -1,10 +1,14 @@
 
 *.o
-*.yy.c
-*.tab.c
-*.tab.h
+*.yy.c[pp]?
+*.tab.c[pp]?
+*.tab.h[pp]?
 *.output
 *.dot
 *.png
 scanner
 parser
+translator
+
+ref
+.vscode/
