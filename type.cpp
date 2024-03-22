@@ -15,17 +15,24 @@ Type ty_float = Type(Type::TY_FLOAT, 4, 4);
 Type ty_double = Type(Type::TY_DOUBLE, 8, 8);
 Type ty_ldouble = Type(Type::TY_LDOUBLE, 16, 16);
 
-Value::Value(const char* str)
+bool Type::is_compatible(Type* t1, Type* t2)
 {
-  ptr = strdup(str);
-  ty = ty_char.array_of(strlen(str) + 1);
+  if (t1->kind == t2->kind) {
+    return true;
+  }
+  return false;
 }
 
-Value Value::index(Value idx) const
+Imm* Imm::index(Imm* idx) const
 {
-  assert(ty->kind == Type::TY_PTR || ty->kind == Type::TY_ARRAY);
-  Value v;
-  v.ty = ty->base;
-  v.ptr = (char*)ptr + idx.i32 * ty->base->size;
+  assert(ty->is_indexable());
+  auto ty1 = ty->getBaseTy();
+  auto ptr1 = (char*)ptr + idx->i32 * ty->getBaseTy()->getSize();
+  Imm* v = new Imm(ty1, ptr1);
   return v;
+}
+
+Imm* Imm::add(Imm* imm) const
+{
+  return new Imm(i32 + imm->i32);
 }

@@ -1,571 +1,332 @@
 #pragma once
 #include "c2.hpp"
-#include "backend/backend.hpp"
+#include "backend.hpp"
 #include "type.hpp"
 #include <cassert>
 #include <iostream>
 #include <vector>
 #include <optional>
 
-enum NodeKind
-{
-  // EXPRESSION,
-  E_COMMA_EXPRESSION,
-  E_ASSIGNMENT_EXPRESSION,
-  E_CONDITIONAL_EXPRESSION,
-  // E_POSTFIX_EXPRESSION,
-  PFE_INC,
-  PFE_DEC,
-  PFE_CALL,
-  PFE_FIELD,
-  PFE_PTR_FIELD,
-  PFE_INDEX,
-  PFE_INIT,
-  // E_PRIMARY_EXPRESSION,
-  P_IDENTIFIER,
-  P_CONSTANT_I,
-  P_CONSTANT_F,
-  P_ENUMERATION_CONSTANT,
-  P_STRING_LITERAL,
-  P_FUNC_NAME,
-  P_PARENTHESIZED_EXPRESSION,
-  P_GENERIC_SELECTION,
-  // E_UNARY_EXPRESSION,
-  U_INC_OP,
-  U_DEC_OP,
-  U_ADDR_OP,
-  U_DEREF_OP,
-  U_POS_OP,
-  U_NEG_OP,
-  U_REV_OP,
-  U_NOT_OP,
-  U_SIZEOF_OP,
-  U_ALIGNOF_OP,
-
-  E_CAST_EXPRESSION,
-  E_ARITHMETIC_EXPRESSION,
-
-  N_FUNCTION_DEFINITION,
-
-  N_DECLARATOR,
-  N_ABSTRACT_DECLARATOR,
-
-  // D_DIRECT_DECLRATOR
-  D_IDENTIFIER,
-  D_PARENTHESIZED_DECLARATOR,
-  D_ARRAY_DECLARATOR,
-  D_FUNCTION_DECLARATOR,
-
-  // D_DIRECT_ABSTRACT_DECLARATOR
-  D_PARENTHESIZED_ABSTRACT_DECLARATOR,
-  D_ARRAY_ABSTRACT_DECLARATOR,
-  D_FUNCTION_ABSTRACT_DECLARATOR,
-
-  N_PARAMETER_LIST,
-  N_DECLARATION_NORMAL,
-  N_DECLARATION_STATIC,
-  PAR_DECLARATOR,
-  PAR_ABSTRACT_DECLARATOR,
-  PAR_ANONYMOUS,
-
-  N_INIT_DECLARATOR,
-  N_STRUCT_DECLARATOR,
-  N_STATIC_ASSERT_DECLARATION,
-  N_STRUCT_DECLARATION_NORMAL,
-  N_STRUCT_DECLARATION_STATIC,
-  N_GENERIC_SELECTION,
-  // N_DESIGNATOR,
-  D_FIELD_DESIGNATOR,
-  D_INDEX_DESIGNATOR,
-  N_DESIGNATION,
-  // N_INITIALIZER,
-  I_EXPRESSION,
-  I_NESTED_INITIALIZER,
-  // N_STATEMENT,
-  // // S_LABELED_STATEMENT,
-  L_IDENTIFIER_STATEMENT,
-  L_CASE_STATEMENT,
-  L_DEFAULT_STATEMENT,
-  S_COMPOUND_STATEMENT,
-  S_EXPRESSION_STATEMENT,
-  // // S_SELECTION_STATEMENT,
-  S_IF_STATEMENT,
-  S_SWITCH_STATEMENT,
-
-  // // S_ITERATION_STATEMENT,
-  S_WHILE_STATEMENT,
-  S_DO_WHILE_STATEMENT,
-  S_FOR_STATEMENT,
-  // // S_JUMP_STATEMENT,
-  S_GOTO_STATEMENT,
-  S_CONTINUE_STATEMENT,
-  S_BREAK_STATEMENT,
-  S_RETURN_STATEMENT,
-  N_POINTER,
-  // N_TYPE_SPECIFIER,
-  T_BUILTIN,
-  T_ATOMIC,
-  T_STRUCT,
-  T_UNION,
-  T_ENUM,
-  T_TYPEDEF_NAME,
-  N_ALIGNMENT_SPECIFIER,
-  N_DECLARATION_SPECIFIERS,
-  N_ENUMERATOR,
-  N_SPECIFIER_QUALIFIER_LIST,
-  N_TYPE_NAME,
-  N_TRANSLATION_UNIT,
-  N_GENERIC_ASSOCIATION,
-  N_STORAGE_CLASS_SPECIFIER,
-  N_FUNCTION_SPECIFIER,
-  N_TYPE_QUALIFIER,
-  N_END,
-};
-
-class Node;
-class Expression;
-class PrimaryExpression;
+class AbstractArrayDeclarator;
+class AbstractDeclarator;
+class AbstractDeclarator;
+class AbstractDirectDeclarator;
+class AbstractFunctionDeclarator;
+class AbstractParameterDeclaration;
+class AbstractParenthesizedDeclarator;
+class AlignmentSpecifier;
+class AnonymousParameterDeclaration;
+class ArithmeticExpression;
+class ArrayDeclarator;
+class AssignmentExpression;
+class AtomicTypeSpecifier;
+class BreakStatement;
+class CaseStatement;
+class CastExpression;
+class CommaExpression;
+class CompoundStatement;
+class ConditionalExpression;
+class ConstantF;
+class ConstantI;
+class ContinueStatement;
+class Declaration;
+class DeclarationSpecifierList;
+class Declarator;
+class DefaultStatement;
+class Designation;
+class DirectDeclarator;
+class DoWhileStatement;
+class EnumerationConstantUse;
+class Enumerator;
+class EnumTypeSpecifier;
+class ExpressionInitializer;
+class ExpressionStatement;
+class FieldDesignator;
+class ForStatement;
+class FuncName;
+class FunctionDeclarator;
+class FunctionDefinition;
+class FunctionSpecifier;
 class GenericAssociation;
 class GenericSelection;
-class StorageClassSpecifier;
-class FunctionSpecifier;
-class TypeQualifier;
+class GotoStatement;
 class Identifier;
-class ConstantI;
-class ConstantF;
-class EnumerationConstantUse;
-class StringLiteral;
-class FuncName;
-class ParenthesizedExpression;
-class UnaryExpression;
-class UnaryExpressionExpr;
-class UnaryExpressionOnType;
-class CommaExpression;
-class AssignmentExpression;
-class ConditionalExpression;
-class PostfixExpression;
-class PostfixExpressionIncOp;
-class PostfixExpressionDecOp;
-class PostfixExpressionIndexOp;
-class PostfixExpressionCallOp;
-class PostfixExpressionDotOp;
-class PostfixExpressionPtrOp;
-class PostfixExpressionCastOp;
-class ArithmeticExpression;
-class CastExpression;
-class Designator;
-class DesignatorField;
-class DesignatorIndex;
-class Designation;
-class Initializer;
-class InitializerExpression;
-class InitializerNested;
-class StaticAssertDeclaration;
-class Enumerator;
-class TypeSpecifier;
-class TypeSpecifierBuiltin;
-class Specifiers;
-class TypeSpecifierAtomic;
-class TypeSpecifierTypedefName;
-class StructDeclarator;
-class StructDeclaration;
-class StructDeclarationNormal;
-class StructDeclarationStaticAssert;
-class TypeSpecifierStructOrUnion;
-class AlignmentSpecifier;
-class DeclarationSpecifiers;
-class Pointer;
-class TypeSpecifierEnum;
-class Statement;
-class LabeledStatement;
-class LabeledStatementIdentifier;
-class LabeledStatementCase;
-class LabeledStatementDefault;
-class ExpressionStatement;
-class SelectionStatement;
-class SelectionStatementIf;
-class SelectionStatementSwitch;
-class IterationStatement;
-class IterationStatementWhile;
-class IterationStatementDoWhile;
-class IterationStatementFor;
-class JumpStatement;
-class JumpStatementContinue;
-class JumpStatementBreak;
-class JumpStatementGoto;
-class JumpStatementReturn;
-class Declarator;
-class AbstractDeclarator;
-class DirectDeclarator;
-class DirectDeclaratorIdentifier;
-class DirectDeclaratorParenthesized;
-class DirectDeclaratorArray;
-class DirectDeclaratorFunction;
-class DirectAbstractDeclarator;
-class DirectAbstractDeclaratorParenthesized;
-class DirectAbstractDeclaratorArray;
-class DirectAbstractDeclaratorFunction;
-class ParameterDeclaration;
-class ParameterDeclarationDecl;
-class ParameterDeclarationAbstDecl;
-class ParameterDeclarationAnonymous;
-class ParameterList;
+class IdentifierDeclarator;
+class IfStatement;
+class IndexDesignator;
 class InitDeclarator;
-class Declaration;
-class DeclarationNormal;
-class DeclarationStaticAssert;
-class TypeName;
-class CompoundStatement;
-class FunctionDefinition;
+class Initializer;
+class LabeledStatement;
+class NestedInitializer;
+class NormalDeclaration;
+class ParameterDeclaration;
+class NormalStructDeclaration;
+class ParameterList;
+class ParenthesizedDeclarator;
+class ParenthesizedExpression;
+class Pointer;
+class PostfixExpressionCallOp;
+class PostfixExpressionCastOp;
+class PostfixExpressionDecOp;
+class PostfixExpressionDotOp;
+class PostfixExpressionIncOp;
+class PostfixExpressionIndexOp;
+class PostfixExpressionPtrOp;
+class ReturnStatement;
+class SpecifierQualifierList;
+class StaticAssert;
+class StorageClassSpecifier;
+class StringLiteral;
+class StructDeclarator;
+class StructUnionTypeSpecifier;
+class SwitchStatement;
 class TranslationUnit;
+class TypeName;
+class TypeQualifier;
+class BuiltinTypeSpecifier;
+class TypedefTypeSpecifier;
+class UnaryExpressionOnExpr;
+class UnaryExpressionOnType;
+class WhileStatement;
+
+class Node
+{
+public:
+  virtual void accept(Visitor* visitor) = 0;
+};
 
 class Visitor
 {
 public:
+  virtual void visit(AbstractArrayDeclarator* n) {}
+  virtual void visit(AbstractDeclarator* n) {}
+  virtual void visit(AbstractFunctionDeclarator* n) {}
+  virtual void visit(AbstractParameterDeclaration* n) {}
+  virtual void visit(AbstractParenthesizedDeclarator* n) {}
+  virtual void visit(AlignmentSpecifier* n) {}
+  virtual void visit(AnonymousParameterDeclaration* n) {}
+  virtual void visit(ArithmeticExpression* n) {}
+  virtual void visit(ArrayDeclarator* n) {}
+  virtual void visit(AssignmentExpression* n) {}
+  virtual void visit(AtomicTypeSpecifier* n) {}
+  virtual void visit(BreakStatement* n) {}
+  virtual void visit(CaseStatement* n) {}
+  virtual void visit(CastExpression* n) {}
+  virtual void visit(CommaExpression* n) {}
+  virtual void visit(CompoundStatement* n) {}
+  virtual void visit(ConditionalExpression* n) {}
+  virtual void visit(ConstantF* n) {}
+  virtual void visit(ConstantI* n) {}
+  virtual void visit(ContinueStatement* n) {}
+  virtual void visit(DeclarationSpecifierList* n) {}
+  virtual void visit(Declarator* n) {}
+  virtual void visit(DefaultStatement* n) {}
+  virtual void visit(Designation* n) {}
+  virtual void visit(DoWhileStatement* n) {}
+  virtual void visit(EnumerationConstantUse* n) {}
+  virtual void visit(Enumerator* n) {}
+  virtual void visit(EnumTypeSpecifier* n) {}
+  virtual void visit(ExpressionInitializer* n) {}
+  virtual void visit(ExpressionStatement* n) {}
+  virtual void visit(FieldDesignator* n) {}
+  virtual void visit(ForStatement* n) {}
+  virtual void visit(FuncName* n) {}
+  virtual void visit(FunctionDeclarator* n) {}
+  virtual void visit(FunctionDefinition* n) {}
+  virtual void visit(FunctionSpecifier* n) {}
   virtual void visit(GenericAssociation* n) {}
   virtual void visit(GenericSelection* n) {}
+  virtual void visit(GotoStatement* n) {}
   virtual void visit(Identifier* n) {}
-  virtual void visit(ConstantI* n) {}
-  virtual void visit(ConstantF* n) {}
-  virtual void visit(EnumerationConstantUse* n) {}
-  virtual void visit(StringLiteral* n) {}
-  virtual void visit(FuncName* n) {}
-  virtual void visit(ParenthesizedExpression* n) {}
-  virtual void visit(CommaExpression* n) {}
-  virtual void visit(AssignmentExpression* n) {}
-  virtual void visit(ConditionalExpression* n) {}
-  virtual void visit(PostfixExpressionIncOp* n) {}
-  virtual void visit(PostfixExpressionDecOp* n) {}
-  virtual void visit(PostfixExpressionCallOp* n) {}
-  virtual void visit(PostfixExpressionDotOp* n) {}
-  virtual void visit(PostfixExpressionPtrOp* n) {}
-  virtual void visit(PostfixExpressionIndexOp* n) {}
-  virtual void visit(PostfixExpressionCastOp* n) {}
-  virtual void visit(ArithmeticExpression* n) {}
-  virtual void visit(CastExpression* n) {}
-  virtual void visit(UnaryExpressionExpr* n) {}
-  virtual void visit(UnaryExpressionOnType* n) {}
-
-  virtual Destination visitExpr(Identifier* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(ConstantI* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(ConstantF* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(EnumerationConstantUse* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(StringLiteral* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(FuncName* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(GenericSelection* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(ParenthesizedExpression* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(CommaExpression* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(AssignmentExpression* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(ConditionalExpression* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(PostfixExpressionIncOp* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(PostfixExpressionDecOp* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(PostfixExpressionCallOp* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(PostfixExpressionDotOp* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(PostfixExpressionPtrOp* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(PostfixExpressionIndexOp* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(PostfixExpressionCastOp* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(ArithmeticExpression* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(CastExpression* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(UnaryExpressionExpr* n)
-  {
-    return {};
-  }
-
-  virtual Destination visitExpr(UnaryExpressionOnType* n)
-  {
-    return {};
-  }
-
-
-  virtual void visit(DesignatorField* n) {}
-  virtual void visit(DesignatorIndex* n) {}
-  virtual void visit(Designation* n) {}
-  virtual void visit(InitializerExpression* n) {}
-  virtual void visit(InitializerNested* n) {}
-  virtual void visit(StaticAssertDeclaration* n) {}
-  virtual void visit(Enumerator* n) {}
-  virtual void visit(TypeSpecifierBuiltin* n) {}
-  virtual void visit(Specifiers* n) {}
-  virtual void visit(TypeSpecifierAtomic* n) {}
-  virtual void visit(TypeSpecifierTypedefName* n) {}
-  virtual void visit(StorageClassSpecifier* n) {}
-  virtual void visit(FunctionSpecifier* n) {}
-  virtual void visit(TypeQualifier* n) {}
-  virtual void visit(StructDeclarator* n) {}
-  virtual void visit(StructDeclarationNormal* n) {}
-  virtual void visit(StructDeclarationStaticAssert* n) {}
-  virtual void visit(TypeSpecifierStructOrUnion* n) {}
-  virtual void visit(AlignmentSpecifier* n) {}
-  virtual void visit(DeclarationSpecifiers* n) {}
-  virtual void visit(Pointer* n) {}
-  virtual void visit(TypeSpecifierEnum* n) {}
-  virtual void visit(LabeledStatementIdentifier* n) {}
-  virtual void visit(LabeledStatementCase* n) {}
-  virtual void visit(LabeledStatementDefault* n) {}
-  virtual void visit(ExpressionStatement* n) {}
-  virtual void visit(SelectionStatementIf* n) {}
-  virtual void visit(SelectionStatementSwitch* n) {}
-  virtual void visit(IterationStatementWhile* n) {}
-  virtual void visit(IterationStatementDoWhile* n) {}
-  virtual void visit(IterationStatementFor* n) {}
-  virtual void visit(JumpStatementContinue* n) {}
-  virtual void visit(JumpStatementBreak* n) {}
-  virtual void visit(JumpStatementGoto* n) {}
-  virtual void visit(JumpStatementReturn* n) {}
-  virtual void visit(Declarator* n) {}
-  virtual void visit(AbstractDeclarator* n) {}
-  virtual void visit(DirectDeclaratorIdentifier* n) {}
-  virtual void visit(DirectDeclaratorParenthesized* n) {}
-  virtual void visit(DirectDeclaratorArray* n) {}
-  virtual void visit(DirectDeclaratorFunction* n) {}
-  virtual void visit(DirectAbstractDeclaratorParenthesized* n) {}
-  virtual void visit(DirectAbstractDeclaratorArray* n) {}
-  virtual void visit(DirectAbstractDeclaratorFunction* n) {}
-  virtual void visit(ParameterDeclarationDecl* n) {}
-  virtual void visit(ParameterDeclarationAbstDecl* n) {}
-  virtual void visit(ParameterDeclarationAnonymous* n) {}
-  virtual void visit(ParameterList* n) {}
+  virtual void visit(IdentifierDeclarator* n) {}
+  virtual void visit(IfStatement* n) {}
+  virtual void visit(IndexDesignator* n) {}
   virtual void visit(InitDeclarator* n) {}
-  virtual void visit(DeclarationNormal* n) {}
-  virtual void visit(DeclarationStaticAssert* n) {}
-  virtual void visit(TypeName* n) {}
-  virtual void visit(CompoundStatement* n) {}
-  virtual void visit(FunctionDefinition* n) {}
+  virtual void visit(LabeledStatement* n) {}
+  virtual void visit(NestedInitializer* n) {}
+  virtual void visit(NormalDeclaration* n) {}
+  virtual void visit(ParameterDeclaration* n) {}
+  virtual void visit(NormalStructDeclaration* n) {}
+  virtual void visit(ParameterList* n) {}
+  virtual void visit(ParenthesizedDeclarator* n) {}
+  virtual void visit(ParenthesizedExpression* n) {}
+  virtual void visit(Pointer* n) {}
+  virtual void visit(PostfixExpressionCallOp* n) {}
+  virtual void visit(PostfixExpressionCastOp* n) {}
+  virtual void visit(PostfixExpressionDecOp* n) {}
+  virtual void visit(PostfixExpressionDotOp* n) {}
+  virtual void visit(PostfixExpressionIncOp* n) {}
+  virtual void visit(PostfixExpressionIndexOp* n) {}
+  virtual void visit(PostfixExpressionPtrOp* n) {}
+  virtual void visit(ReturnStatement* n) {}
+  virtual void visit(SpecifierQualifierList* n) {}
+  virtual void visit(StaticAssert* n) {}
+  virtual void visit(StorageClassSpecifier* n) {}
+  virtual void visit(StringLiteral* n) {}
+  virtual void visit(StructDeclarator* n) {}
+  virtual void visit(StructUnionTypeSpecifier* n) {}
+  virtual void visit(SwitchStatement* n) {}
   virtual void visit(TranslationUnit* n) {}
-};
+  virtual void visit(TypeName* n) {}
+  virtual void visit(TypeQualifier* n) {}
+  virtual void visit(BuiltinTypeSpecifier* n) {}
+  virtual void visit(TypedefTypeSpecifier* n) {}
+  virtual void visit(UnaryExpressionOnExpr* n) {}
+  virtual void visit(UnaryExpressionOnType* n) {}
+  virtual void visit(WhileStatement* n) {}
 
-class Node
-{
-protected:
-  Node(NodeKind kind)
-    : Kind(kind)
-  {}
-  virtual ~Node() {}
 
-public:
-  NodeKind getKind() const
+  virtual Value* visitExpr(Identifier* n)
   {
-    return Kind;
+    return {};
   }
 
-  virtual void accept(Visitor* visitor) = 0;
+  virtual Value* visitExpr(ConstantI* n)
+  {
+    return {};
+  }
 
-  virtual void acceptChildren(Visitor* visitor) = 0;
+  virtual Value* visitExpr(ConstantF* n)
+  {
+    return {};
+  }
 
-private:
-  const NodeKind Kind;
-  int lineno;
+  virtual Value* visitExpr(EnumerationConstantUse* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(StringLiteral* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(FuncName* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(GenericSelection* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(ParenthesizedExpression* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(CommaExpression* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(AssignmentExpression* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(ConditionalExpression* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(PostfixExpressionIncOp* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(PostfixExpressionDecOp* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(PostfixExpressionCallOp* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(PostfixExpressionDotOp* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(PostfixExpressionPtrOp* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(PostfixExpressionIndexOp* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(PostfixExpressionCastOp* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(ArithmeticExpression* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(CastExpression* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(UnaryExpressionOnExpr* n)
+  {
+    return {};
+  }
+
+  virtual Value* visitExpr(UnaryExpressionOnType* n)
+  {
+    return {};
+  }
 };
+
+
+class FuncUnit : virtual public Node
+{};
+
+class FileUnit : virtual public Node
+{};
 
 class Expression : public Node
 {
-protected:
-  Expression(NodeKind kind)
-    : Node(kind)
-  {}
-
 public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() >= E_COMMA_EXPRESSION && node->getKind() <= E_ARITHMETIC_EXPRESSION;
-  }
-
   virtual bool isConst() const
   {
     return false;
   }
 
-  virtual Value eval() const
+  virtual Imm* evalConst(const ScopeManager& scopes) const
   {
-    return Value();
+    return nullptr;
   }
 
-  virtual Destination acceptExprVisitor(Visitor* visitor) = 0;
+  virtual Value* acceptExpr(Visitor* visitor) = 0;
 };
 
 class PrimaryExpression : public Expression
-{
-protected:
-  PrimaryExpression(NodeKind kind)
-    : Expression(kind)
-  {}
-
-public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() >= P_IDENTIFIER && node->getKind() <= P_GENERIC_SELECTION;
-  }
-};
-
-class GenericAssociation : public Node
-{
-public:
-  GenericAssociation(TypeName* typeName, Expression* assignmentExpression)
-    : Node(N_GENERIC_ASSOCIATION)
-    , typeName(typeName)
-    , assignmentExpression(assignmentExpression)
-  {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_GENERIC_ASSOCIATION;
-  }
-
-  void accept(Visitor* visitor) override
-  {
-    visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override;
-
-public:
-  TypeName* typeName;
-  Expression* assignmentExpression;
-};
-
-class GenericSelection : public PrimaryExpression
-{
-public:
-  GenericSelection(Expression* assignmentExpression,
-                   std::vector<GenericAssociation*>* genericAssociationList)
-    : PrimaryExpression(P_GENERIC_SELECTION)
-    , assignmentExpression(assignmentExpression)
-    , genericAssociationList(genericAssociationList)
-  {}
-
-  void accept(Visitor* visitor) override
-  {
-    visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    assignmentExpression->accept(visitor);
-    for (auto genericAssociation : *genericAssociationList)
-      genericAssociation->accept(visitor);
-  }
-
-  Value eval() const override
-  {
-    return Value();
-  }
-
-  Destination acceptExprVisitor(Visitor* visitor) override
-  {
-    return visitor->visitExpr(this);
-  }
-
-public:
-  Expression* assignmentExpression;
-  std::vector<GenericAssociation*>* genericAssociationList;
-};
+{};
 
 class Identifier : public PrimaryExpression
 {
 public:
   Identifier(char* sVal)
-    : PrimaryExpression(P_IDENTIFIER)
+    : PrimaryExpression()
     , name(sVal)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == P_IDENTIFIER;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override {}
-
-  Value eval() const override
-  {
-    return Value(name);
-  }
-
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -578,33 +339,26 @@ class ConstantI : public PrimaryExpression
 {
 public:
   ConstantI(int iVal)
-    : PrimaryExpression(P_CONSTANT_I)
+    : PrimaryExpression()
     , val(iVal)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == P_CONSTANT_I;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override {}
-
   bool isConst() const override
   {
     return true;
   }
 
-  Value eval() const override
+  Imm* evalConst(const ScopeManager& scopes) const override
   {
-    return Value(val);
+    return new Imm(val);
   }
 
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -617,33 +371,26 @@ class ConstantF : public PrimaryExpression
 {
 public:
   ConstantF(float fVal)
-    : PrimaryExpression(P_CONSTANT_F)
+    : PrimaryExpression()
     , val(fVal)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == P_CONSTANT_F;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override {}
-
   bool isConst() const override
   {
     return true;
   }
 
-  Value eval() const override
+  Imm* evalConst(const ScopeManager& scopes) const override
   {
-    return Value(val);
+    return new Imm(val);
   }
 
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -656,15 +403,10 @@ class EnumerationConstantUse : public PrimaryExpression
 {
 public:
   EnumerationConstantUse(char* sVal)
-    : PrimaryExpression(P_ENUMERATION_CONSTANT)
+    : PrimaryExpression()
     , _enum(sVal)
   {
     // TODO: resolve
-  }
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == P_ENUMERATION_CONSTANT;
   }
 
   void accept(Visitor* visitor) override
@@ -672,19 +414,19 @@ public:
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override {}
 
   bool isConst() const override
   {
     return true;
   }
 
-  Value eval() const override
+  Imm* evalConst(const ScopeManager& scopes) const override
   {
-    return Value(_enum);
+    Symbol* sym = scopes.find(_enum, SymbolKind::SK_ENUMERATION_CONSTANT);
+    return sym->val;
   }
 
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -697,33 +439,29 @@ class StringLiteral : public PrimaryExpression
 {
 public:
   StringLiteral(char* sVal)
-    : PrimaryExpression(P_STRING_LITERAL)
+    : PrimaryExpression()
     , val(sVal)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == P_STRING_LITERAL;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override {}
 
   bool isConst() const override
   {
     return true;
   }
 
-  Value eval() const override
+  Imm* evalConst(const ScopeManager& scopes) const override
   {
-    return Value(val);
+    // typ: const char*
+    int len = strlen(val);
+    return new Imm(val, ty_char.array_of(len));
   }
 
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -736,32 +474,27 @@ class FuncName : public PrimaryExpression
 {
 public:
   FuncName()
-    : PrimaryExpression(P_FUNC_NAME)
+    : PrimaryExpression()
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == P_FUNC_NAME;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override {}
 
   bool isConst() const override
   {
     return true;
   }
 
-  Value eval() const override
+  Imm* evalConst(const ScopeManager& scopes) const override
   {
-    return Value("__func__");
+    const char* name = scopes.find("__func__", SymbolKind::SK_FUNCTION)->getName();
+    return new Imm(name, ty_char.array_of(strlen(name)));
   }
 
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -771,23 +504,13 @@ class ParenthesizedExpression : public PrimaryExpression
 {
 public:
   ParenthesizedExpression(Expression* expression)
-    : PrimaryExpression(P_PARENTHESIZED_EXPRESSION)
+    : PrimaryExpression()
     , expr(expression)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == P_PARENTHESIZED_EXPRESSION;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    expr->accept(visitor);
   }
 
   bool isConst() const override
@@ -795,12 +518,12 @@ public:
     return expr->isConst();
   }
 
-  Value eval() const override
+  Imm* evalConst(const ScopeManager& scopes) const override
   {
-    return expr->eval();
+    return expr->evalConst(scopes);
   }
 
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -812,85 +535,101 @@ public:
 class UnaryExpression : public Expression
 {
 protected:
-  UnaryExpression(NodeKind kind)
-    : Expression(kind)
+  UnaryExpression()
+    : Expression()
   {}
-
-public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() >= U_INC_OP && node->getKind() <= U_ALIGNOF_OP;
-  }
 };
 
-class UnaryExpressionExpr : public UnaryExpression
+class UnaryExpressionOnExpr : public UnaryExpression
 {
 public:
-  UnaryExpressionExpr(NodeKind kind, Expression* expression)
-    : UnaryExpression(kind)
-    , expression(expression)
-  {}
-
-  static bool classof(const Node* node)
+  enum UnaryOperator
   {
-    return node->getKind() >= U_INC_OP && node->getKind() <= U_NOT_OP;
-  }
+    U_INC_OP,
+    U_DEC_OP,
+    U_ADDR_OP,
+    U_DEREF_OP,
+    U_POS_OP,
+    U_NEG_OP,
+    U_REV_OP,
+    U_NOT_OP,
+    U_SIZEOF_OP,
+  };
+
+  UnaryExpressionOnExpr(UnaryOperator op, Expression* expression)
+    : UnaryExpression()
+    , op(op)
+    , expr(expression)
+  {}
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    expression->accept(visitor);
-  }
-
   bool isConst() const override
   {
-    return expression->isConst();   // TODO
+    return expr->isConst();   // TODO
   }
 
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Imm* evalConst(const ScopeManager& scopes) const override
+  {
+    return expr->evalConst(scopes);
+  }
+
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
 
 public:
-  Expression* expression;
+  UnaryOperator op;
+  Expression* expr;
 };
 
 class UnaryExpressionOnType : public UnaryExpression
 {
 public:
-  UnaryExpressionOnType(NodeKind kind, TypeName* typeName)
-    : UnaryExpression(kind)
+  enum TypeOperator
+  {
+    U_SIZEOF_OP,
+    U_ALIGNOF_OP
+  };
+
+  UnaryExpressionOnType(TypeOperator kind, TypeName* typeName)
+    : UnaryExpression()
+    , op(kind)
     , typeName(typeName)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() >= U_SIZEOF_OP && node->getKind() <= U_ALIGNOF_OP;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override;
+  void acceptChildren(Visitor* visitor);
 
   bool isConst() const override
   {
     return true;
   }
 
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Imm* evalConst(const ScopeManager& scopes) const override
+  {
+    // TODO: resolve
+    if (op == U_SIZEOF_OP)
+      return new Imm(0x1234);
+    else
+      return new Imm(0x5678);
+  }
+
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
 
 public:
+  TypeOperator op;
   TypeName* typeName;
 };
 
@@ -898,18 +637,13 @@ class CommaExpression : public Expression
 {
 public:
   CommaExpression()
-    : Expression(E_COMMA_EXPRESSION)
-    , expressionList()
+    : Expression()
+    , exprs()
   {}
 
   void push_back(Expression* expression)
   {
-    expressionList.push_back(expression);
-  }
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == E_COMMA_EXPRESSION;
+    exprs.push_back(expression);
   }
 
   void accept(Visitor* visitor) override
@@ -917,19 +651,13 @@ public:
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    for (auto* expression : expressionList)
-      expression->accept(visitor);
-  }
-
   bool isConst() const override
   {
-    return expressionList.back()->isConst();
+    return exprs.back()->isConst();
   }
 
 public:
-  std::vector<Expression*> expressionList;
+  std::vector<Expression*> exprs;
 };
 
 class AssignmentExpression : public Expression
@@ -951,28 +679,16 @@ public:
   };
 
 public:
-  AssignmentExpression(Expression* unaryExpression, AssignmentOperator assignmentOperator,
-                       Expression* expression)
-    : Expression(E_ASSIGNMENT_EXPRESSION)
+  AssignmentExpression(Expression* unaryExpression, AssignmentOperator op, Expression* expression)
+    : Expression()
     , lhs(unaryExpression)
-    , op(assignmentOperator)
+    , op(op)
     , rhs(expression)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == E_ASSIGNMENT_EXPRESSION;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    lhs->accept(visitor);
-    rhs->accept(visitor);
   }
 
   bool isConst() const override
@@ -980,7 +696,7 @@ public:
     return op == ASSIGN && rhs->isConst();
   }
 
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -995,259 +711,162 @@ class ConditionalExpression : public Expression
 {
 public:
   ConditionalExpression(Expression* pred, Expression* expression1, Expression* expression2)
-    : Expression(E_CONDITIONAL_EXPRESSION)
-    , pred(pred)
-    , exprTrue(expression1)
-    , exprFalse(expression2)
+    : Expression()
+    , cond(pred)
+    , then(expression1)
+    , els(expression2)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == E_CONDITIONAL_EXPRESSION;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    pred->accept(visitor);
-    exprTrue->accept(visitor);
-    if (exprFalse)
-      exprFalse->accept(visitor);
   }
 
   bool isConst() const override
   {
-    return pred->isConst() && exprTrue->isConst();   // TODO
+    return cond->isConst() && then->isConst();   // TODO
   }
 
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
 
 public:
-  Expression* pred;
-  Expression* exprTrue;
-  Expression* exprFalse;
+  Expression* cond;
+  Expression* then;
+  Expression* els;
 };
 
-class PostfixExpression : public Expression
-{
-protected:
-  PostfixExpression(NodeKind kind)
-    : Expression(kind)
-  {}
-
-public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() >= PFE_INC && node->getKind() <= PFE_INIT;
-  }
-};
-
-class PostfixExpressionIncOp : public PostfixExpression
+class PostfixExpressionIncOp : public Expression
 {
 public:
   PostfixExpressionIncOp(Expression* primaryExpression)
-    : PostfixExpression(PFE_INC)
-    , primaryExpression(primaryExpression)
+    : Expression()
+    , expr(primaryExpression)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == PFE_INC;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    primaryExpression->accept(visitor);
-  }
-
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
 
-private:
-  Expression* primaryExpression;
+public:
+  Expression* expr;
 };
 
-class PostfixExpressionDecOp : public PostfixExpression
+class PostfixExpressionDecOp : public Expression
 {
 public:
   PostfixExpressionDecOp(Expression* primaryExpression)
-    : PostfixExpression(PFE_DEC)
-    , primaryExpression(primaryExpression)
+    : Expression()
+    , expr(primaryExpression)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == PFE_DEC;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    primaryExpression->accept(visitor);
-  }
-
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
 
-private:
-  Expression* primaryExpression;
+public:
+  Expression* expr;
 };
 
-class PostfixExpressionCallOp : public PostfixExpression
+class PostfixExpressionCallOp : public Expression
 {
 public:
   PostfixExpressionCallOp(Expression* primaryExpression,
                           std::vector<Expression*>* argumentExpressionList = nullptr)
-    : PostfixExpression(PFE_CALL)
-    , primaryExpression(primaryExpression)
-    , argumentExpressionList(argumentExpressionList)
+    : Expression()
+    , expr(primaryExpression)
+    , args(argumentExpressionList)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == PFE_CALL;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    primaryExpression->accept(visitor);
-    if (argumentExpressionList) {
-      for (auto argumentExpression : *argumentExpressionList)
-        argumentExpression->accept(visitor);
-    }
-  }
-
-  Value eval() const override
-  {
-    return Value();
-  }
-
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
 
 public:
-  Expression* primaryExpression;
-  std::vector<Expression*>* argumentExpressionList;
+  Expression* expr;
+  std::vector<Expression*>* args;
 };
 
-class PostfixExpressionDotOp : public PostfixExpression
+class PostfixExpressionDotOp : public Expression
 {
 public:
   PostfixExpressionDotOp(Expression* primaryExpression, char* identifier)
-    : PostfixExpression(PFE_FIELD)
-    , primaryExpression(primaryExpression)
-    , identifier(identifier)
+    : Expression()
+    , expr(primaryExpression)
+    , field(identifier)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == PFE_FIELD;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    primaryExpression->accept(visitor);
-  }
-
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
 
-private:
-  Expression* primaryExpression;
-  const char* identifier;
+public:
+  Expression* expr;
+  const char* field;
 };
 
-class PostfixExpressionPtrOp : public PostfixExpression
+class PostfixExpressionPtrOp : public Expression
 {
 public:
   PostfixExpressionPtrOp(Expression* primaryExpression, char* identifier)
-    : PostfixExpression(PFE_PTR_FIELD)
-    , primaryExpression(primaryExpression)
-    , identifier(identifier)
+    : Expression()
+    , expr(primaryExpression)
+    , field(identifier)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == PFE_PTR_FIELD;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    primaryExpression->accept(visitor);
-  }
-
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
 
-private:
-  Expression* primaryExpression;
-  const char* identifier;
+public:
+  Expression* expr;
+  const char* field;
 };
 
-class PostfixExpressionIndexOp : public PostfixExpression
+class PostfixExpressionIndexOp : public Expression
 {
 public:
   PostfixExpressionIndexOp(Expression* primaryExpression, Expression* expression)
-    : PostfixExpression(PFE_INDEX)
+    : Expression()
     , expr(primaryExpression)
     , index(expression)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == PFE_INDEX;
-  }
-
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    expr->accept(visitor);
-    index->accept(visitor);
   }
 
   bool isConst() const override
@@ -1255,49 +874,42 @@ public:
     return expr->isConst() && index->isConst();
   }
 
-  Value eval() const override
+  Imm* evalConst(const ScopeManager& scopes) const override
   {
-    Value off = index->eval();
-    return expr->eval().index(off);
+    Imm* off = index->evalConst(scopes);
+    return expr->evalConst(scopes)->index(off);
   }
 
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
 
-private:
+public:
   Expression* expr;
   Expression* index;
 };
 
-class PostfixExpressionCastOp : public PostfixExpression
+class PostfixExpressionCastOp : public Expression
 {
 public:
   PostfixExpressionCastOp(TypeName* typeName, std::vector<Initializer*>* initializerList)
-    : PostfixExpression(PFE_INIT)
+    : Expression()
     , typeName(typeName)
     , initializerList(initializerList)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == PFE_INIT;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override;
-
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
 
-private:
+public:
   TypeName* typeName;
   std::vector<Initializer*>* initializerList;
 };
@@ -1370,28 +982,16 @@ public:
   }
 
 public:
-  ArithmeticExpression(Expression* expression1, ArithmeticOperator arithmeticOperator,
-                       Expression* expression2)
-    : Expression(E_ARITHMETIC_EXPRESSION)
+  ArithmeticExpression(Expression* expression1, ArithmeticOperator op, Expression* expression2)
+    : Expression()
     , lhs(expression1)
-    , op(arithmeticOperator)
+    , op(op)
     , rhs(expression2)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == E_ARITHMETIC_EXPRESSION;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    lhs->accept(visitor);
-    rhs->accept(visitor);
   }
 
   bool isConst() const override
@@ -1399,7 +999,7 @@ public:
     return lhs->isConst() && rhs->isConst();
   }
 
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -1414,29 +1014,22 @@ class CastExpression : public Expression
 {
 public:
   CastExpression(TypeName* typeName, Expression* expression)
-    : Expression(E_CAST_EXPRESSION)
+    : Expression()
     , typeName(typeName)
     , expr(expression)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == E_CAST_EXPRESSION;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override;
-
   bool isConst() const override
   {
     return expr->isConst();
   }
 
-  Destination acceptExprVisitor(Visitor* visitor) override
+  Value* acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -1447,206 +1040,107 @@ public:
 };
 
 class Designator : public Node
-{
-protected:
-  Designator(NodeKind kind)
-    : Node(kind)
-  {}
+{};
 
-public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() >= D_FIELD_DESIGNATOR && node->getKind() <= D_INDEX_DESIGNATOR;
-  }
-};
-
-class DesignatorField : public Designator
+class FieldDesignator : public Designator
 {
 public:
-  DesignatorField(char* identifier)
-    : Designator(D_FIELD_DESIGNATOR)
-    , identifier(identifier)
+  FieldDesignator(char* identifier)
+    : field(identifier)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == D_FIELD_DESIGNATOR;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override {}
-
 public:
-  const char* identifier;
+  const char* field;
 };
 
-class DesignatorIndex : public Designator
+class IndexDesignator : public Designator
 {
 public:
-  DesignatorIndex(Expression* constantExpression)
-    : Designator(D_INDEX_DESIGNATOR)
-    , constantExpression(constantExpression)
+  IndexDesignator(Expression* constantExpression)
+    : index(constantExpression)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == D_INDEX_DESIGNATOR;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    constantExpression->accept(visitor);
-  }
-
 public:
-  Expression* constantExpression;
+  Expression* index;
 };
 
 class Designation : public Node
 {
 public:
   Designation(std::vector<Designator*>* designator)
-    : Node(N_DESIGNATION)
-    , designator(designator)
+    : designators(designator)
   {}
 
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-
-    for (auto d : *designator) {
-      d->accept(visitor);
-    }
-  }
-
 public:
-  std::vector<Designator*>* designator;
+  std::vector<Designator*>* designators;
 };
 
 class Initializer : public Node
 {
 protected:
-  Initializer(NodeKind kind, Designation* designation = nullptr)
-    : Node(kind)
-    , designation(designation)
+  Initializer(Designation* designation = nullptr)
+    : designation(designation)
   {}
-
-public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == I_NESTED_INITIALIZER || node->getKind() == I_EXPRESSION;
-  }
 
 public:
   Designation* designation;
 };
 
-class InitializerExpression : public Initializer
+class ExpressionInitializer : public Initializer
 {
 public:
-  InitializerExpression(Expression* assignmentExpression)
-    : Initializer(I_EXPRESSION)
+  ExpressionInitializer(Expression* assignmentExpression)
+    : Initializer()
     , expr(assignmentExpression)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == I_EXPRESSION;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    expr->accept(visitor);
   }
 
 public:
   Expression* expr;
 };
 
-class InitializerNested : public Initializer
+class NestedInitializer : public Initializer
 {
 public:
-  InitializerNested(std::vector<Initializer*>* initializerList)
-    : Initializer(I_NESTED_INITIALIZER)
+  NestedInitializer(std::vector<Initializer*>* initializerList)
+    : Initializer()
     , initializers(initializerList)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == I_NESTED_INITIALIZER;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    for (auto initializer : *initializers) {
-      initializer->accept(visitor);
-    }
   }
 
 public:
   std::vector<Initializer*>* initializers;
 };
 
-class StaticAssertDeclaration : public Node
-{
-public:
-  StaticAssertDeclaration(Expression* constantExpression, char* stringLiteral)
-    : Node(N_STATIC_ASSERT_DECLARATION)
-    , constantExpression(constantExpression)
-    , stringLiteral(stringLiteral)
-  {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_STATIC_ASSERT_DECLARATION;
-  }
-
-  void accept(Visitor* visitor) override
-  {
-    visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-
-    constantExpression->accept(visitor);
-  }
-
-public:
-  Expression* constantExpression;
-  const char* stringLiteral;
-};
-
 class Enumerator : public Node
 {
 public:
   Enumerator(Identifier* identifier, Expression* constantExpression = nullptr)
-    : Node(N_ENUMERATOR)
-    , identifier(identifier)
-    , constantExpression(constantExpression)
+    : identifier(identifier)
+    , expr(constantExpression)
   {
     // TODO: check constantExpression type
     if (constantExpression) {
@@ -1654,48 +1148,29 @@ public:
     }
   }
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_ENUMERATOR;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-
-    identifier->accept(visitor);
-    constantExpression->accept(visitor);
-  }
-
 public:
   Identifier* identifier;
-  Expression* constantExpression;
+  Expression* expr;
 };
 
-class TypeSpecifier : public Node
+class DeclarationSpecifier : public Node
+{};
+
+class SpecifierQualifier : public DeclarationSpecifier
+{};
+
+class TypeSpecifier : public SpecifierQualifier
 {
 protected:
-  TypeSpecifier(NodeKind kind)
-    : Node(kind)
-  {}
-
-public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() >= T_BUILTIN && node->getKind() <= T_TYPEDEF_NAME;
-  }
-
-  bool isBuiltin() const
-  {
-    return isa<TypeSpecifierBuiltin>(this);
-  }
+  TypeSpecifier() {}
 };
 
-class TypeSpecifierBuiltin : public TypeSpecifier
+class BuiltinTypeSpecifier : public TypeSpecifier
 {
 public:
   enum BuiltinType
@@ -1715,22 +1190,16 @@ public:
   };
 
 public:
-  TypeSpecifierBuiltin(BuiltinType type)
-    : TypeSpecifier(T_BUILTIN)
+  BuiltinTypeSpecifier(BuiltinType type)
+    : TypeSpecifier()
     , type(type)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == T_BUILTIN;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override {}
 
   const char* typeName() const
   {
@@ -1755,96 +1224,69 @@ public:
   BuiltinType type;
 };
 
-class Specifiers : public Node
+class SpecifierQualifierList : public Node
 {
 public:
-  Specifiers()
-    : Node(N_SPECIFIER_QUALIFIER_LIST)
-    , specs()
-  {}
+  SpecifierQualifierList() {}
 
   void push_back(TypeSpecifier* typeSpecifier)
   {
-    specs.push_back(typeSpecifier);
+    specs.push_back((SpecifierQualifier*)typeSpecifier);
   }
 
   void push_back(TypeQualifier* typeQualifier)
   {
-    specs.push_back((Node*)typeQualifier);
+    specs.push_back((SpecifierQualifier*)typeQualifier);
   }
 
-  std::vector<Node*>::iterator begin()
+  std::vector<SpecifierQualifier*>::iterator begin()
   {
     return specs.begin();
   }
 
-  std::vector<Node*>::iterator end()
+  std::vector<SpecifierQualifier*>::iterator end()
   {
     return specs.end();
   }
 
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    for (auto typeSpecifier : specs) {
-      typeSpecifier->accept(visitor);
-    }
-  }
-
 public:
-  std::vector<Node*> specs;
+  std::vector<SpecifierQualifier*> specs;
 };
 
-class TypeSpecifierAtomic : public TypeSpecifier
+class AtomicTypeSpecifier : public TypeSpecifier
 {
 public:
-  TypeSpecifierAtomic(Node* typeName)
-    : TypeSpecifier(T_ATOMIC)
+  AtomicTypeSpecifier(TypeName* typeName)
+    : TypeSpecifier()
     , typeName(typeName)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == T_ATOMIC;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    typeName->accept(visitor);
-  }
-
 public:
-  Node* typeName;
+  TypeName* typeName;
 };
 
-class TypeSpecifierTypedefName : public TypeSpecifier
+class TypedefTypeSpecifier : public TypeSpecifier
 {
 public:
-  TypeSpecifierTypedefName(char* name)
-    : TypeSpecifier(T_TYPEDEF_NAME)
+  TypedefTypeSpecifier(char* name)
+    : TypeSpecifier()
     , name(name)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == T_TYPEDEF_NAME;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
-
-  void acceptChildren(Visitor* visitor) override {}
 
 public:
   const char* name;
@@ -1854,123 +1296,58 @@ class StructDeclarator : public Node
 {
 public:
   StructDeclarator(Declarator* declarator, Expression* constantExpression = nullptr)
-    : Node(N_STRUCT_DECLARATOR)
-    , declarator(declarator)
+    : decl(declarator)
     , bitWidth(constantExpression)
   {
     assert(declarator || bitWidth);
   }
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_STRUCT_DECLARATOR;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override;
-
 public:
-  Declarator* declarator;
+  Declarator* decl;
   Expression* bitWidth;
 };
 
 class StructDeclaration : public Node
-{
-protected:
-  StructDeclaration(NodeKind kind)
-    : Node(kind)
-  {}
+{};
 
-public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_STRUCT_DECLARATION_NORMAL ||
-           node->getKind() == N_STRUCT_DECLARATION_STATIC;
-  }
-};
-
-class StructDeclarationNormal : public StructDeclaration
+class NormalStructDeclaration : public StructDeclaration
 {
 public:
-  StructDeclarationNormal(Specifiers* specifierQualifierList,
+  NormalStructDeclaration(SpecifierQualifierList* specifierQualifierList,
                           std::vector<StructDeclarator*>* structDeclaratorList = nullptr)
-    : StructDeclaration(N_STRUCT_DECLARATION_NORMAL)
-    , specifiers(specifierQualifierList)
-    , structDecls(structDeclaratorList)
+    : declSpecs(specifierQualifierList)
+    , declarators(structDeclaratorList)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_STRUCT_DECLARATION_NORMAL;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    specifiers->accept(visitor);
-
-    if (structDecls) {
-      for (auto* structDeclarator : *structDecls) {
-        structDeclarator->accept(visitor);
-      }
-    }
-  }
-
 public:
-  Specifiers* specifiers;
-  std::vector<StructDeclarator*>* structDecls;
+  SpecifierQualifierList* declSpecs;
+  std::vector<StructDeclarator*>* declarators;
 };
 
-class StructDeclarationStaticAssert : public StructDeclaration
+class StructUnionTypeSpecifier : public TypeSpecifier
 {
 public:
-  StructDeclarationStaticAssert(StaticAssertDeclaration* staticAssertDeclaration)
-    : StructDeclaration(N_STRUCT_DECLARATION_STATIC)
-    , staticAssertDeclaration(staticAssertDeclaration)
-  {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_STRUCT_DECLARATION_STATIC;
-  }
-
-  void accept(Visitor* visitor) override
-  {
-    visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-
-    staticAssertDeclaration->accept(visitor);
-  }
-
-public:
-  StaticAssertDeclaration* staticAssertDeclaration;
-};
-
-class TypeSpecifierStructOrUnion : public TypeSpecifier
-{
-public:
-  enum StructOrUnion
+  enum StructOrUnionKind
   {
     S_STRUCT,
     S_UNION,
   };
 
 public:
-  TypeSpecifierStructOrUnion(StructOrUnion type, const char* name,
-                             std::vector<StructDeclaration*>* decls = nullptr)
-    : TypeSpecifier(T_STRUCT)
-    , type(type)
+  StructUnionTypeSpecifier(StructOrUnionKind kind, const char* name,
+                           std::vector<StructDeclaration*>* decls = nullptr)
+    : TypeSpecifier()
+    , kind(kind)
     , name(name)
     , declarations(decls)
   {}
@@ -1985,63 +1362,41 @@ public:
     return !declarations || declarations->empty();
   }
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == T_STRUCT;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    if (declarations) {
-      for (auto structDeclaration : *declarations)
-        structDeclaration->accept(visitor);
-    }
-  }
-
 public:
-  StructOrUnion type;
+  StructOrUnionKind kind;
   const char* name;
   std::vector<StructDeclaration*>* declarations;
 };
 
-class AlignmentSpecifier : public Node
+class AlignmentSpecifier : public DeclarationSpecifier
 {
 public:
   AlignmentSpecifier(TypeName* typeName)
-    : Node(N_ALIGNMENT_SPECIFIER)
-    , typeName(typeName)
-    , constantExpression(nullptr)
+    : typeName(typeName)
+    , expr(nullptr)
   {}
 
   AlignmentSpecifier(Expression* constantExpression)
-    : Node(N_ALIGNMENT_SPECIFIER)
-    , typeName(nullptr)
-    , constantExpression(constantExpression)
+    : typeName(nullptr)
+    , expr(constantExpression)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_ALIGNMENT_SPECIFIER;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override;
-
 public:
   TypeName* typeName;
-  Expression* constantExpression;
+  Expression* expr;
 };
 
-class StorageClassSpecifier : public Node
+class StorageClassSpecifier : public DeclarationSpecifier
 {
 public:
   enum StorageClass
@@ -2056,27 +1411,19 @@ public:
 
 public:
   StorageClassSpecifier(StorageClass storageClass)
-    : Node(N_STORAGE_CLASS_SPECIFIER)
-    , storageClass(storageClass)
+    : storageClass(storageClass)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_STORAGE_CLASS_SPECIFIER;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
-
-  void acceptChildren(Visitor* visitor) override {}
 
 public:
   StorageClass storageClass;
 };
 
-class FunctionSpecifier : public Node
+class FunctionSpecifier : public DeclarationSpecifier
 {
 public:
   enum EFunctionSpecifier
@@ -2087,27 +1434,19 @@ public:
 
 public:
   FunctionSpecifier(EFunctionSpecifier funcSpec)
-    : Node(N_STORAGE_CLASS_SPECIFIER)
-    , funcSpec(funcSpec)
+    : functionSpecifier(funcSpec)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_STORAGE_CLASS_SPECIFIER;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override {}
-
 public:
-  EFunctionSpecifier funcSpec;
+  EFunctionSpecifier functionSpecifier;
 };
 
-class TypeQualifier : public Node
+class TypeQualifier : public SpecifierQualifier
 {
 public:
   enum ETypeQualifier
@@ -2120,88 +1459,66 @@ public:
 
 public:
   TypeQualifier(ETypeQualifier typeQualifier)
-    : Node(N_TYPE_QUALIFIER)
-    , typeQualifier(typeQualifier)
+    : typeQualifier(typeQualifier)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_TYPE_QUALIFIER;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
-
-  void acceptChildren(Visitor* visitor) override {}
 
 public:
   ETypeQualifier typeQualifier;
 };
 
-class DeclarationSpecifiers : public Node
+class DeclarationSpecifierList : public Node
 {
 public:
-  DeclarationSpecifiers()
-    : Node(N_DECLARATION_SPECIFIERS)
-  {}
+  DeclarationSpecifierList() {}
 
   void push_back(StorageClassSpecifier* storageClassSpecifier)
   {
-    specs.push_back(storageClassSpecifier);
+    specs.push_back((DeclarationSpecifier*)storageClassSpecifier);
   }
 
   void push_back(TypeSpecifier* type)
   {
     // TODO: validate
-    // auto cur = std::find(typeSpecs.begin(), typeSpecs.end(), [](Node
+    // auto cur = std::find(typeSpecs.begin(), typeSpecs.end(), [](FuncUnit
     // *i){return isa<TypeSpecifier>(i);});
 
-    specs.push_back(type);
+    specs.push_back((DeclarationSpecifier*)type);
   }
 
   void push_back(TypeQualifier* typeQualifier)
   {
-    specs.push_back(typeQualifier);
+    specs.push_back((DeclarationSpecifier*)typeQualifier);
   }
 
   void push_back(FunctionSpecifier* functionSpecifier)
   {
-    specs.push_back(functionSpecifier);
+    specs.push_back((DeclarationSpecifier*)functionSpecifier);
   }
 
   void push_back(AlignmentSpecifier* alignmentSpecifier)
   {
-    specs.push_back(alignmentSpecifier);
+    specs.push_back((DeclarationSpecifier*)alignmentSpecifier);
   }
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_DECLARATION_SPECIFIERS;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    for (auto* spec : specs)
-      spec->accept(visitor);
-  }
-
 public:
-  std::vector<Node*> specs;
+  std::vector<DeclarationSpecifier*> specs;
 };
 
 class Pointer : public Node
 {
 public:
   Pointer(std::vector<TypeQualifier*>* typeQualifierList = nullptr, Pointer* pointer = nullptr)
-    : Node(N_POINTER)
-    , typeQuals(typeQualifierList)
+    : typeQuals(typeQualifierList)
     , pointer(pointer)
   {}
 
@@ -2210,20 +1527,9 @@ public:
     return pointer == nullptr;
   }
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_POINTER;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    if (pointer)
-      pointer->accept(visitor);
   }
 
 public:
@@ -2231,21 +1537,21 @@ public:
   Pointer* pointer;
 };
 
-class TypeSpecifierEnum : public TypeSpecifier
+class EnumTypeSpecifier : public TypeSpecifier
 {
 public:
-  TypeSpecifierEnum(char* identifier, std::vector<Enumerator*>* enumeratorList)
-    : TypeSpecifier(T_ENUM)
+  EnumTypeSpecifier(char* identifier, std::vector<Enumerator*>* enumeratorList)
+    : TypeSpecifier()
     , name(identifier)
     , enumerators(enumeratorList)
   {}
 
-  TypeSpecifierEnum(char* identifier)
-    : TypeSpecifierEnum(identifier, nullptr)
+  EnumTypeSpecifier(char* identifier)
+    : EnumTypeSpecifier(identifier, nullptr)
   {}
 
-  TypeSpecifierEnum(std::vector<Enumerator*>* enumeratorList)
-    : TypeSpecifierEnum(nullptr, enumeratorList)
+  EnumTypeSpecifier(std::vector<Enumerator*>* enumeratorList)
+    : EnumTypeSpecifier(nullptr, enumeratorList)
   {}
 
   bool is_anonymous() const
@@ -2258,23 +1564,9 @@ public:
     return !enumerators->empty();
   }
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == T_ENUM;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-
-    if (enumerators) {
-      for (auto enumerator : *enumerators)
-        enumerator->accept(visitor);
-    }
   }
 
 public:
@@ -2282,115 +1574,69 @@ public:
   std::vector<Enumerator*>* enumerators;
 };
 
-class Statement : public Node
-{
-protected:
-  Statement(NodeKind kind)
-    : Node(kind)
-  {}
-
-public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() >= L_IDENTIFIER_STATEMENT && node->getKind() <= S_RETURN_STATEMENT;
-  }
-};
+class Statement : public FuncUnit
+{};
 
 class LabeledStatement : public Statement
 {
-protected:
-  LabeledStatement(NodeKind kind, Statement* statement)
-    : Statement(kind)
-    , statement(statement)
+public:
+  LabeledStatement(char* identifier, Statement* statement)
+    : Statement()
+    , label(identifier)
+    , stmt(statement)
   {}
 
-public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() >= L_IDENTIFIER_STATEMENT && node->getKind() <= L_DEFAULT_STATEMENT;
-  }
-
-public:
-  Statement* statement;
-};
-
-class LabeledStatementIdentifier : public LabeledStatement
-{
-public:
-  LabeledStatementIdentifier(char* identifier, Statement* statement)
-    : LabeledStatement(L_IDENTIFIER_STATEMENT, statement)
-    , identifier(identifier)
-  {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == L_IDENTIFIER_STATEMENT;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override {}
-
 public:
-  const char* identifier;
+  const char* label;
+  Statement* stmt;
 };
 
-class LabeledStatementCase : public LabeledStatement
+class CaseStatement : public Statement
 {
 public:
-  LabeledStatementCase(Node* constantExpression, Statement* statement)
-    : LabeledStatement(L_CASE_STATEMENT, statement)
-    , constantExpression(constantExpression)
+  CaseStatement(Expression* constantExpression, Statement* statement)
+    : Statement()
+    , expr(constantExpression)
+    , stmt(statement)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == L_CASE_STATEMENT;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-
-    constantExpression->accept(visitor);
-  }
-
 public:
-  Node* constantExpression;
+  Expression* expr;
+  Statement* stmt;
 };
 
-class LabeledStatementDefault : public LabeledStatement
+class DefaultStatement : public Statement
 {
 public:
-  LabeledStatementDefault(Statement* statement)
-    : LabeledStatement(L_DEFAULT_STATEMENT, statement)
+  DefaultStatement(Statement* statement)
+    : Statement()
+    , stmt(statement)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == L_DEFAULT_STATEMENT;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override {}
+public:
+  Statement* stmt;
 };
 
 class ExpressionStatement : public Statement
 {
 public:
   ExpressionStatement(Expression* expr = nullptr)
-    : Statement(S_EXPRESSION_STATEMENT)
+    : Statement()
     , expr(expr)
   {}
 
@@ -2399,425 +1645,292 @@ public:
     return expr == nullptr;
   }
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == S_EXPRESSION_STATEMENT;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
+
+public:
+  Expression* expr;
+};
+
+class IfStatement : public Statement
+{
+public:
+  IfStatement(Expression* expression, Statement* statement, Statement* elseStatement = nullptr)
+    : Statement()
+    , cond(expression)
+    , then(statement)
+    , els(elseStatement)
+  {}
+
+  void accept(Visitor* visitor)
   {
-    if (expr)
-      expr->accept(visitor);
+    visitor->visit(this);
+  }
+
+public:
+  Expression* cond;
+  Statement* then;
+  Statement* els;
+};
+
+class SwitchStatement : public Statement
+{
+public:
+  SwitchStatement(Expression* expression, Statement* statement)
+    : Statement()
+    , cond(expression)
+    , body(statement)
+  {}
+
+  void accept(Visitor* visitor)
+  {
+    visitor->visit(this);
+  }
+
+public:
+  Expression* cond;
+  Statement* body;
+};
+
+class WhileStatement : public Statement
+{
+public:
+  WhileStatement(Expression* expression, Statement* statement)
+    : Statement()
+    , cond(expression)
+    , body(statement)
+  {}
+
+  void accept(Visitor* visitor)
+  {
+    visitor->visit(this);
+  }
+
+public:
+  Expression* cond;
+  Statement* body;
+};
+
+class DoWhileStatement : public Statement
+{
+public:
+  DoWhileStatement(Expression* expression, Statement* statement)
+    : Statement()
+    , cond(expression)
+    , body(statement)
+  {}
+
+  void accept(Visitor* visitor)
+  {
+    visitor->visit(this);
+  }
+
+public:
+  Expression* cond;
+  Statement* body;
+};
+
+class ForStatement : public Statement
+{
+public:
+  ForStatement(ExpressionStatement* init, ExpressionStatement* condition, Expression* update,
+               Statement* statement)
+    : Statement()
+    , decl(nullptr)
+    , init(init->expr)
+    , cond(condition->expr)
+    , inc(update)
+    , body(statement)
+  {}
+
+  ForStatement(Declaration* decl, ExpressionStatement* condition, Expression* update,
+               Statement* statement)
+    : Statement()
+    , decl(decl)
+    , init(nullptr)
+    , cond(condition->expr)
+    , inc(update)
+    , body(statement)
+  {}
+
+  void accept(Visitor* visitor)
+  {
+    visitor->visit(this);
+  }
+
+public:
+  Declaration* decl;
+  Expression* init;
+  Expression* cond;
+  Expression* inc;
+  Statement* body;
+};
+
+class ContinueStatement : public Statement
+{
+public:
+  ContinueStatement()
+    : Statement()
+  {}
+
+  void accept(Visitor* visitor)
+  {
+    visitor->visit(this);
+  }
+};
+
+class BreakStatement : public Statement
+{
+public:
+  BreakStatement()
+    : Statement()
+  {}
+
+  void accept(Visitor* visitor)
+  {
+    visitor->visit(this);
+  }
+};
+
+class GotoStatement : public Statement
+{
+public:
+  GotoStatement(char* identifier)
+    : Statement()
+    , label(identifier)
+  {}
+
+  void accept(Visitor* visitor)
+  {
+    visitor->visit(this);
+  }
+
+public:
+  const char* label;
+};
+
+class ReturnStatement : public Statement
+{
+public:
+  ReturnStatement(Expression* expression = nullptr)
+    : Statement()
+    , expr(expression)
+  {}
+
+  bool is_empty() const
+  {
+    return expr == nullptr;
+  }
+
+  void accept(Visitor* visitor)
+  {
+    visitor->visit(this);
   }
 
 public:
   Expression* expr;
 };
 
-class SelectionStatement : public Statement
-{
-protected:
-  SelectionStatement(NodeKind kind)
-    : Statement(kind)
-  {}
-
-public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == S_IF_STATEMENT || node->getKind() == S_SWITCH_STATEMENT;
-  }
-};
-
-class SelectionStatementIf : public SelectionStatement
-{
-public:
-  SelectionStatementIf(Expression* expression, Statement* statement,
-                       Statement* elseStatement = nullptr)
-    : SelectionStatement(S_IF_STATEMENT)
-    , expression(expression)
-    , statement(statement)
-    , elseStatement(elseStatement)
-  {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == S_IF_STATEMENT;
-  }
-
-  void accept(Visitor* visitor) override
-  {
-    visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    expression->accept(visitor);
-    statement->accept(visitor);
-    if (elseStatement) {
-      elseStatement->accept(visitor);
-    }
-  }
-
-public:
-  Expression* expression;
-  Statement* statement;
-  Statement* elseStatement;
-};
-
-class SelectionStatementSwitch : public SelectionStatement
-{
-public:
-  SelectionStatementSwitch(Expression* expression, Statement* statement)
-    : SelectionStatement(S_SWITCH_STATEMENT)
-    , expression(expression)
-    , statement(statement)
-  {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == S_SWITCH_STATEMENT;
-  }
-
-  void accept(Visitor* visitor) override
-  {
-    visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    expression->accept(visitor);
-    statement->accept(visitor);
-  }
-
-public:
-  Expression* expression;
-  Statement* statement;
-};
-
-class IterationStatement : public Statement
-{
-protected:
-  IterationStatement(NodeKind kind)
-    : Statement(kind)
-  {}
-
-public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() >= S_WHILE_STATEMENT && node->getKind() <= S_FOR_STATEMENT;
-  }
-};
-
-class IterationStatementWhile : public IterationStatement
-{
-public:
-  IterationStatementWhile(Expression* expression, Statement* statement)
-    : IterationStatement(S_WHILE_STATEMENT)
-    , expression(expression)
-    , statement(statement)
-  {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == S_WHILE_STATEMENT;
-  }
-
-  void accept(Visitor* visitor) override
-  {
-    visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    expression->accept(visitor);
-    statement->accept(visitor);
-  }
-
-public:
-  Expression* expression;
-  Statement* statement;
-};
-
-class IterationStatementDoWhile : public IterationStatement
-{
-public:
-  IterationStatementDoWhile(Expression* expression, Statement* statement)
-    : IterationStatement(S_DO_WHILE_STATEMENT)
-    , expression(expression)
-    , statement(statement)
-  {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == S_DO_WHILE_STATEMENT;
-  }
-
-  void accept(Visitor* visitor) override
-  {
-    visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    expression->accept(visitor);
-    statement->accept(visitor);
-  }
-
-public:
-  Expression* expression;
-  Statement* statement;
-};
-
-class IterationStatementFor : public IterationStatement
-{
-public:
-  IterationStatementFor(Node* declOrExpr, Node* condition, Expression* update, Statement* statement)
-    : IterationStatement(S_FOR_STATEMENT)
-    , update(update)
-    , statement(statement)
-  {
-    if (isa<Declaration>(declOrExpr)) {
-      declaration = cast<Declaration>(declOrExpr);
-    } else if (isa<Expression>(declOrExpr)) {
-      init = cast<Expression>(declOrExpr);
-    } else {
-      assert(false);
-    }
-
-    if (isa<Statement>(condition)) {
-      auto statement = cast<Statement>(condition);
-      assert(isa<ExpressionStatement>(statement));
-      this->condition = cast<ExpressionStatement>(statement)->expr;
-    } else {
-      assert(false);
-    }
-  }
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == S_FOR_STATEMENT;
-  }
-
-  void accept(Visitor* visitor) override
-  {
-    visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override;
-
-public:
-  Declaration* declaration;
-  Expression* init;
-  Expression* condition;
-  Expression* update;
-  Statement* statement;
-};
-
-class JumpStatement : public Statement
-{
-protected:
-  JumpStatement(NodeKind kind)
-    : Statement(kind)
-  {}
-
-public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() >= S_GOTO_STATEMENT && node->getKind() <= S_RETURN_STATEMENT;
-  }
-};
-
-class JumpStatementContinue : public JumpStatement
-{
-public:
-  JumpStatementContinue()
-    : JumpStatement(S_CONTINUE_STATEMENT)
-  {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == S_CONTINUE_STATEMENT;
-  }
-
-  void accept(Visitor* visitor) override
-  {
-    visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override {}
-};
-
-class JumpStatementBreak : public JumpStatement
-{
-public:
-  JumpStatementBreak()
-    : JumpStatement(S_BREAK_STATEMENT)
-  {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == S_BREAK_STATEMENT;
-  }
-
-  void accept(Visitor* visitor) override
-  {
-    visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override {}
-};
-
-class JumpStatementGoto : public JumpStatement
-{
-public:
-  JumpStatementGoto(char* identifier)
-    : JumpStatement(S_GOTO_STATEMENT)
-    , identifier(identifier)
-  {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == S_GOTO_STATEMENT;
-  }
-
-  void accept(Visitor* visitor) override
-  {
-    visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override {}
-
-public:
-  const char* identifier;
-};
-
-class JumpStatementReturn : public JumpStatement
-{
-public:
-  JumpStatementReturn(Expression* expression = nullptr)
-    : JumpStatement(S_RETURN_STATEMENT)
-    , expression(expression)
-  {}
-
-  bool is_empty() const
-  {
-    return expression == nullptr;
-  }
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == S_RETURN_STATEMENT;
-  }
-
-  void accept(Visitor* visitor) override
-  {
-    visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    if (expression)
-      expression->accept(visitor);
-  }
-
-public:
-  Expression* expression;
-};
-
 class Declarator : public Node
 {
 public:
   Declarator(Pointer* pointer, DirectDeclarator* directDeclarator)
-    : Node(N_DECLARATOR)
-    , pointer(pointer)
-    , directDeclarator(directDeclarator)
+    : pointer(pointer)
+    , decl(directDeclarator)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_DECLARATOR;
-  }
 
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
-
-  void acceptChildren(Visitor* visitor) override;
 
   const char* name() const;
 
 public:
   Pointer* pointer;
-  DirectDeclarator* directDeclarator;
-};
-
-class AbstractDeclarator : public Node
-{
-public:
-  AbstractDeclarator(Pointer* pointer, DirectAbstractDeclarator* directDeclarator = nullptr)
-    : Node(N_ABSTRACT_DECLARATOR)
-    , pointer(pointer)
-    , directAbstractDeclarator(directDeclarator)
-  {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_ABSTRACT_DECLARATOR;
-  }
-
-  void accept(Visitor* visitor) override
-  {
-    visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override;
-
-public:
-  Pointer* pointer;
-  DirectAbstractDeclarator* directAbstractDeclarator;
+  DirectDeclarator* decl;
 };
 
 class DirectDeclarator : public Node
 {
 protected:
-  DirectDeclarator(NodeKind kind)
-    : Node(kind)
-  {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() >= D_IDENTIFIER && node->getKind() <= D_FUNCTION_DECLARATOR;
-  }
+  DirectDeclarator() {}
 
 public:
   virtual const char* name() const = 0;
 };
 
-class DirectDeclaratorIdentifier : public DirectDeclarator
+class ParameterDeclarationBase : public Node
 {
-public:
-  DirectDeclaratorIdentifier(char* identifier)
-    : DirectDeclarator(D_IDENTIFIER)
-    , identifier(identifier)
+protected:
+  ParameterDeclarationBase(DeclarationSpecifierList* declarationSpecifierList)
+    : declSpecs(declarationSpecifierList)
   {}
 
-  static bool classof(const Node* node)
+public:
+  DeclarationSpecifierList* declSpecs;
+};
+
+class ParameterList : public Node
+{
+public:
+  ParameterList()
+    : params()
+    , hasEllipsis(false)
+  {}
+
+  // implement begin and end
+  auto begin() const
   {
-    return node->getKind() == D_IDENTIFIER;
+    return params.begin();
   }
+
+  auto end() const
+  {
+    return params.end();
+  }
+
+  size_t size() const
+  {
+    return params.size() + hasEllipsis;
+  }
+
+  void push_back(ParameterDeclarationBase* parameterDeclaration)
+  {
+    params.push_back(parameterDeclaration);
+  }
+
+  void setHasEllipsis(bool hasEllipsis)
+  {
+    this->hasEllipsis = hasEllipsis;
+  }
+
+  void accept(Visitor* visitor)
+  {
+    visitor->visit(this);
+  }
+
+public:
+  std::vector<ParameterDeclarationBase*> params;
+  bool hasEllipsis;
+};
+
+class IdentifierDeclarator : public DirectDeclarator
+{
+public:
+  IdentifierDeclarator(char* identifier)
+    : DirectDeclarator()
+    , identifier(identifier)
+  {}
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
-
-  void acceptChildren(Visitor* visitor) override {}
 
   const char* name() const override
   {
@@ -2828,419 +1941,260 @@ public:
   const char* identifier;
 };
 
-class DirectDeclaratorParenthesized : public DirectDeclarator
+class ParenthesizedDeclarator : public DirectDeclarator
 {
 public:
-  DirectDeclaratorParenthesized(Declarator* declarator)
-    : DirectDeclarator(D_PARENTHESIZED_DECLARATOR)
-    , declarator(declarator)
+  ParenthesizedDeclarator(Declarator* declarator)
+    : DirectDeclarator()
+    , decl(declarator)
   {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == D_PARENTHESIZED_DECLARATOR;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    declarator->accept(visitor);
-  }
-
   const char* name() const override
   {
-    return declarator->name();
+    return decl->name();
   }
 
 public:
-  Declarator* declarator;
+  Declarator* decl;
 };
 
-class DirectDeclaratorArray : public DirectDeclarator
+class ArrayDeclarator : public DirectDeclarator
 {
 public:
-  DirectDeclaratorArray(DirectDeclarator* declarator,
-                        std::vector<TypeQualifier*>* typeQualifierList = nullptr,
-                        Expression* expression = nullptr, bool static_ = false, bool any_ = false)
-    : DirectDeclarator(D_ARRAY_DECLARATOR)
-    , directDecl(declarator)
+  ArrayDeclarator(DirectDeclarator* declarator,
+                  std::vector<TypeQualifier*>* typeQualifierList = nullptr,
+                  Expression* expression = nullptr, bool static_ = false, bool any_ = false)
+    : DirectDeclarator()
+    , decl(declarator)
     , typeQualifierList(typeQualifierList)
-    , expression(expression)
+    , expr(expression)
     , static_(static_)
     , any_(any_)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == D_ARRAY_DECLARATOR;
-  }
-
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    directDecl->accept(visitor);
-    if (expression)
-      expression->accept(visitor);
-  }
-
   const char* name() const override
   {
-    return directDecl->name();
+    return decl->name();
   }
 
-
 public:
-  DirectDeclarator* directDecl;
+  DirectDeclarator* decl;
   std::vector<TypeQualifier*>* typeQualifierList;
-  Expression* expression;
+  Expression* expr;
   bool static_;
   bool any_;
 };
 
-class DirectDeclaratorFunction : public DirectDeclarator
+class FunctionDeclarator : public DirectDeclarator
 {
 public:
-  enum DirectDeclaratorFunctionType
+  enum FunctionDeclaratorKind
   {
-    D_PARAMETER_TYPE_LIST,
-    D_IDENTIFIER_LIST,
-    D_NO_PARAMETER,
+    D_NORMAL,
+    D_OLD_STYLE,
   };
 
 public:
-  DirectDeclaratorFunction(DirectDeclarator* declarator, ParameterList* parameterTypeList)
-    : DirectDeclarator(D_FUNCTION_DECLARATOR)
-    , directDeclaratorFunctionType(D_PARAMETER_TYPE_LIST)
-    , directDecl(declarator)
-    , parameterList(parameterTypeList)
+  FunctionDeclarator(DirectDeclarator* declarator, ParameterList* parameterTypeList = nullptr)
+    : DirectDeclarator()
+    , kind(D_NORMAL)
+    , decl(declarator)
+    , params(parameterTypeList ? parameterTypeList : new ParameterList())
   {}
 
-  DirectDeclaratorFunction(DirectDeclarator* declarator, std::vector<const char*>* identifierList)
-    : DirectDeclarator(D_FUNCTION_DECLARATOR)
-    , directDeclaratorFunctionType(D_IDENTIFIER_LIST)
-    , directDecl(declarator)
-    , identifierList(identifierList)
+  FunctionDeclarator(DirectDeclarator* declarator, std::vector<const char*>* identifierList)
+    : DirectDeclarator()
+    , kind(D_OLD_STYLE)
+    , decl(declarator)
+    , oldStyleParams(identifierList ? identifierList : new std::vector<const char*>())
   {}
-
-  DirectDeclaratorFunction(DirectDeclarator* declarator)
-    : DirectDeclarator(D_FUNCTION_DECLARATOR)
-    , directDeclaratorFunctionType(D_NO_PARAMETER)
-    , directDecl(declarator)
-  {}
-
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == D_FUNCTION_DECLARATOR;
-  }
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
-
-  void acceptChildren(Visitor* visitor) override;
 
   const char* name() const override
   {
-    return directDecl->name();
+    return decl->name();
   }
 
 public:
-  DirectDeclaratorFunctionType directDeclaratorFunctionType;
-  DirectDeclarator* directDecl;
-  ParameterList* parameterList;
-  std::vector<const char*>* identifierList;
+  FunctionDeclaratorKind kind;
+  DirectDeclarator* decl;
+  union
+  {
+    ParameterList* params;                      // NOT NULL
+    std::vector<const char*>* oldStyleParams;   // NOT NULL
+  };
 };
 
-class DirectAbstractDeclarator : public Node
-{
-protected:
-  DirectAbstractDeclarator(NodeKind kind)
-    : Node(kind)
-  {}
-
-public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() >= D_PARENTHESIZED_ABSTRACT_DECLARATOR &&
-           node->getKind() <= D_FUNCTION_ABSTRACT_DECLARATOR;
-  }
-};
-
-class DirectAbstractDeclaratorParenthesized : public DirectAbstractDeclarator
+class AbstractDeclarator : public Node
 {
 public:
-  DirectAbstractDeclaratorParenthesized(AbstractDeclarator* abstractDeclarator)
-    : DirectAbstractDeclarator(D_PARENTHESIZED_ABSTRACT_DECLARATOR)
-    , abstractDeclarator(abstractDeclarator)
+  AbstractDeclarator(Pointer* pointer, AbstractDirectDeclarator* directDeclarator = nullptr)
+    : pointer(pointer)
+    , decl(directDeclarator)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == D_PARENTHESIZED_ABSTRACT_DECLARATOR;
-  }
 
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
+public:
+  Pointer* pointer;
+  AbstractDirectDeclarator* decl;
+};
+
+class AbstractDirectDeclarator : public Node
+{};
+
+class AbstractParenthesizedDeclarator : public AbstractDirectDeclarator
+{
+public:
+  AbstractParenthesizedDeclarator(AbstractDeclarator* abstractDeclarator)
+    : AbstractDirectDeclarator()
+    , decl(abstractDeclarator)
+  {}
+
+  void accept(Visitor* visitor)
   {
-    abstractDeclarator->accept(visitor);
+    visitor->visit(this);
   }
 
 public:
-  AbstractDeclarator* abstractDeclarator;
+  AbstractDeclarator* decl;
 };
 
-class DirectAbstractDeclaratorArray : public DirectAbstractDeclarator
+class AbstractArrayDeclarator : public AbstractDirectDeclarator
 {
 public:
-  DirectAbstractDeclaratorArray(DirectAbstractDeclarator* abstractDeclarator,
-                                std::vector<TypeQualifier*>* typeQualifierList,
-                                Expression* assignmentExpression, bool static_ = false)
-    : DirectAbstractDeclarator(D_ARRAY_ABSTRACT_DECLARATOR)
-    , abstractDeclarator(abstractDeclarator)
+  AbstractArrayDeclarator(AbstractDirectDeclarator* abstractDeclarator,
+                          std::vector<TypeQualifier*>* typeQualifierList,
+                          Expression* assignmentExpression, bool static_ = false)
+    : AbstractDirectDeclarator()
+    , decl(abstractDeclarator)
     , typeQualifierList(typeQualifierList)
-    , assignmentExpression(assignmentExpression)
+    , expr(assignmentExpression)
     , static_(static_)
     , any_(false)
   {}
 
-  DirectAbstractDeclaratorArray(DirectAbstractDeclarator* abstractDeclarator, bool any_ = false)
-    : DirectAbstractDeclarator(D_ARRAY_ABSTRACT_DECLARATOR)
-    , abstractDeclarator(abstractDeclarator)
-    , assignmentExpression(nullptr)
+  AbstractArrayDeclarator(AbstractDirectDeclarator* abstractDeclarator, bool any_ = false)
+    : AbstractDirectDeclarator()
+    , decl(abstractDeclarator)
+    , expr(nullptr)
     , static_(false)
     , any_(any_)
   {}
 
-  DirectAbstractDeclaratorArray(bool any_ = false)
-    : DirectAbstractDeclarator(D_ARRAY_ABSTRACT_DECLARATOR)
-    , abstractDeclarator(nullptr)
-    , assignmentExpression(nullptr)
+  AbstractArrayDeclarator(bool any_ = false)
+    : AbstractDirectDeclarator()
+    , decl(nullptr)
+    , expr(nullptr)
     , static_(false)
     , any_(any_)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == D_ARRAY_ABSTRACT_DECLARATOR;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    abstractDeclarator->accept(visitor);
-    if (assignmentExpression) {
-      assignmentExpression->accept(visitor);
-    }
-  }
 
 public:
-  DirectAbstractDeclarator* abstractDeclarator;
+  AbstractDirectDeclarator* decl;
   std::vector<TypeQualifier*>* typeQualifierList;
-  Expression* assignmentExpression;
+  Expression* expr;
   bool static_;
   bool any_;
 };
 
-class DirectAbstractDeclaratorFunction : public DirectAbstractDeclarator
+class AbstractFunctionDeclarator : public AbstractDirectDeclarator
 {
 public:
-  DirectAbstractDeclaratorFunction(DirectAbstractDeclarator* abstractDeclarator,
-                                   ParameterList* parameterTypeList = nullptr)
-    : DirectAbstractDeclarator(D_FUNCTION_ABSTRACT_DECLARATOR)
-    , abstractDeclarator(abstractDeclarator)
-    , parameterTypeList(parameterTypeList)
+  AbstractFunctionDeclarator(AbstractDirectDeclarator* abstractDeclarator,
+                             ParameterList* parameterTypeList = nullptr)
+    : AbstractDirectDeclarator()
+    , decl(abstractDeclarator)
+    , params(parameterTypeList ? parameterTypeList : new ParameterList())
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == D_FUNCTION_ABSTRACT_DECLARATOR;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override;
-
 public:
-  DirectAbstractDeclarator* abstractDeclarator;
-  ParameterList* parameterTypeList;
+  AbstractDirectDeclarator* decl = nullptr;
+  ParameterList* params;   // NOT NULL
 };
 
-class ParameterDeclaration : public Node
-{
-protected:
-  ParameterDeclaration(NodeKind kind, DeclarationSpecifiers* declarationSpecifiers)
-    : Node(kind)
-    , declarationSpecifiers(declarationSpecifiers)
-  {}
-
-public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() >= PAR_DECLARATOR && node->getKind() <= PAR_ANONYMOUS;
-  }
-
-public:
-  DeclarationSpecifiers* declarationSpecifiers;
-};
-
-class ParameterDeclarationDecl : public ParameterDeclaration
+class ParameterDeclaration : public ParameterDeclarationBase
 {
 public:
-  ParameterDeclarationDecl(DeclarationSpecifiers* declarationSpecifiers, Declarator* declarator)
-    : ParameterDeclaration(PAR_DECLARATOR, declarationSpecifiers)
-    , declarator(declarator)
+  ParameterDeclaration(DeclarationSpecifierList* declarationSpecifierList, Declarator* declarator)
+    : ParameterDeclarationBase(declarationSpecifierList)
+    , decl(declarator)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == PAR_DECLARATOR;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    declarationSpecifiers->accept(visitor);
-    declarator->accept(visitor);
-  }
-
-private:
-  Declarator* declarator;
+public:
+  Declarator* decl;
 };
 
-class ParameterDeclarationAbstDecl : public ParameterDeclaration
+class AbstractParameterDeclaration : public ParameterDeclarationBase
 {
 public:
-  ParameterDeclarationAbstDecl(DeclarationSpecifiers* declarationSpecifiers,
+  AbstractParameterDeclaration(DeclarationSpecifierList* declarationSpecifierList,
                                AbstractDeclarator* abstractDeclarator)
-    : ParameterDeclaration(PAR_ABSTRACT_DECLARATOR, declarationSpecifiers)
-    , abstractDeclarator(abstractDeclarator)
+    : ParameterDeclarationBase(declarationSpecifierList)
+    , decl(abstractDeclarator)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == PAR_ABSTRACT_DECLARATOR;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    declarationSpecifiers->accept(visitor);
-    abstractDeclarator->accept(visitor);
-  }
-
-private:
-  AbstractDeclarator* abstractDeclarator;
+public:
+  AbstractDeclarator* decl;
 };
 
-class ParameterDeclarationAnonymous : public ParameterDeclaration
+class AnonymousParameterDeclaration : public ParameterDeclarationBase
 {
 public:
-  ParameterDeclarationAnonymous(DeclarationSpecifiers* declarationSpecifiers)
-    : ParameterDeclaration(PAR_ANONYMOUS, declarationSpecifiers)
+  AnonymousParameterDeclaration(DeclarationSpecifierList* declarationSpecifierList)
+    : ParameterDeclarationBase(declarationSpecifierList)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == PAR_ANONYMOUS;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    declarationSpecifiers->accept(visitor);
-  }
-};
-
-class ParameterList : public Node
-{
-public:
-  ParameterList()
-    : Node(N_PARAMETER_LIST)
-    , parameterList(new std::vector<ParameterDeclaration*>)
-    , hasEllipsis(false)
-  {}
-
-  // implement begin and end
-  auto begin() const
-  {
-    return parameterList->begin();
-  }
-
-  auto end() const
-  {
-    return parameterList->end();
-  }
-
-  void push_back(ParameterDeclaration* parameterDeclaration)
-  {
-    parameterList->push_back(parameterDeclaration);
-  }
-
-  void setHasEllipsis(bool hasEllipsis)
-  {
-    this->hasEllipsis = hasEllipsis;
-  }
-
-  static bool classof(Node* node)
-  {
-    return node->getKind() == N_PARAMETER_LIST;
-  }
-
-  void accept(Visitor* visitor) override
-  {
-    visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    for (auto parameterDeclaration : *parameterList) {
-      parameterDeclaration->accept(visitor);
-    }
-  }
-
-public:
-  std::vector<ParameterDeclaration*>* parameterList;
-  bool hasEllipsis;
 };
 
 class InitDeclarator : public Node
 {
 public:
   InitDeclarator(Declarator* declarator, Initializer* initializer = nullptr)
-    : Node(N_INIT_DECLARATOR)
-    , declarator(declarator)
+    : decl(declarator)
     , initializer(initializer)
   {
     // if (!declarator->is_variable()) {
@@ -3248,252 +2202,203 @@ public:
     // }
   }
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_INIT_DECLARATOR;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    declarator->accept(visitor);
-    if (initializer)
-      initializer->accept(visitor);
   }
 
   const char* name() const
   {
-    return declarator->name();
+    return decl->name();
   }
 
 public:
-  Declarator* declarator;
+  Declarator* decl;
   Initializer* initializer;
 };
 
-class Declaration : public Node
-{
-protected:
-  Declaration(NodeKind kind)
-    : Node(kind)
-  {}
+class Declaration : public FuncUnit, public FileUnit
+{};
 
-public:
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_DECLARATION_NORMAL || node->getKind() == N_DECLARATION_STATIC;
-  }
-};
-
-class DeclarationNormal : public Declaration
+class NormalDeclaration : public Declaration
 {
 public:
-  DeclarationNormal(DeclarationSpecifiers* declarationSpecifiers,
+  NormalDeclaration(DeclarationSpecifierList* declarationSpecifierList,
                     std::vector<InitDeclarator*>* initDeclaratorList = nullptr)
-    : Declaration(N_DECLARATION_NORMAL)
-    , declSpecs(declarationSpecifiers)
+    : Declaration()
+    , declSpecs(declarationSpecifierList)
     , initDecls(initDeclaratorList)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_DECLARATION_NORMAL;
-  }
 
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    declSpecs->accept(visitor);
-    if (initDecls) {
-      for (auto initDeclarator : *initDecls)
-        initDeclarator->accept(visitor);
-    }
-  }
 
 public:
-  DeclarationSpecifiers* declSpecs;
+  DeclarationSpecifierList* declSpecs;
   std::vector<InitDeclarator*>* initDecls;
 };
 
-class DeclarationStaticAssert : public Declaration
+class StaticAssert : public Declaration, public StructDeclaration
 {
 public:
-  DeclarationStaticAssert(StaticAssertDeclaration* staticAssertDeclaration)
-    : Declaration(N_DECLARATION_STATIC)
-    , staticAssertDeclaration(staticAssertDeclaration)
+  StaticAssert(Expression* constantExpression, char* stringLiteral)
+    : expr(constantExpression)
+    , stringLiteral(stringLiteral)
   {}
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_DECLARATION_STATIC;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    staticAssertDeclaration->accept(visitor);
-  }
-
 public:
-  StaticAssertDeclaration* staticAssertDeclaration;
+  Expression* expr;
+  const char* stringLiteral;
 };
 
 class TypeName : public Node
 {
 public:
-  TypeName(Specifiers* specifierQualifierList, AbstractDeclarator* abstractDeclarator = nullptr)
-    : Node(N_TYPE_NAME)
-    , specifierQualifierList(specifierQualifierList)
+  TypeName(SpecifierQualifierList* specifierQualifierList,
+           AbstractDeclarator* abstractDeclarator = nullptr)
+    : declSpecs(specifierQualifierList)
     , abstractDeclarator(abstractDeclarator)
   {}
 
-  static bool classof(const Node* node)
+  void accept(Visitor* visitor)
   {
-    return node->getKind() == N_TYPE_NAME;
+    visitor->visit(this);
   }
+
+public:
+  SpecifierQualifierList* declSpecs;
+  AbstractDeclarator* abstractDeclarator;
+};
+
+class GenericAssociation : public Node
+{
+public:
+  GenericAssociation(TypeName* typeName, Expression* assignmentExpression)
+    : typeName(typeName)
+    , expr(assignmentExpression)
+  {}
+
+  void accept(Visitor* visitor)
+  {
+    visitor->visit(this);
+  }
+
+public:
+  TypeName* typeName;
+  Expression* expr;
+};
+
+class GenericSelection : public PrimaryExpression
+{
+public:
+  GenericSelection(Expression* assignmentExpression,
+                   std::vector<GenericAssociation*>* genericAssociationList)
+    : PrimaryExpression()
+    , expr(assignmentExpression)
+    , associations(genericAssociationList)
+  {}
 
   void accept(Visitor* visitor) override
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
+  Imm* evalConst(const ScopeManager& scopes) const override
   {
-    specifierQualifierList->accept(visitor);
-    if (abstractDeclarator)
-      abstractDeclarator->accept(visitor);
+    // TODO
+    return nullptr;
+  }
+
+  Value* acceptExpr(Visitor* visitor) override
+  {
+    return visitor->visitExpr(this);
   }
 
 public:
-  Specifiers* specifierQualifierList;
-  AbstractDeclarator* abstractDeclarator;
+  Expression* expr;
+  std::vector<GenericAssociation*>* associations;
 };
 
 class CompoundStatement : public Statement
 {
 public:
-  CompoundStatement(std::vector<Node*>* blockItemList = nullptr)
-    : Statement(S_COMPOUND_STATEMENT)
-    , blockItems(blockItemList)
-  {}
-
-  static bool classof(const Node* node)
+  CompoundStatement(std::vector<FuncUnit*>* blockItemList = nullptr)
+    : Statement()
   {
-    return node->getKind() == S_COMPOUND_STATEMENT;
+    if (blockItemList) {
+      blockItems = std::move(*blockItemList);
+    }
   }
 
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    if (blockItems) {
-      for (auto item : *blockItems) {
-        assert(isa<Declaration>(item) || isa<Statement>(item));
-        item->accept(visitor);
-      }
-    }
-  }
-
 public:
-  std::vector<Node*>* blockItems;
+  std::vector<FuncUnit*> blockItems;
 };
 
-class FunctionDefinition : public Node
+class FunctionDefinition : public FileUnit
 {
 public:
-  FunctionDefinition(DeclarationSpecifiers* declarationSpecifiers, Declarator* declarator,
+  FunctionDefinition(DeclarationSpecifierList* declarationSpecifierList, Declarator* declarator,
                      std::vector<Declaration*>* declarationList,
                      CompoundStatement* compoundStatement)
-    : Node(N_FUNCTION_DEFINITION)
-    , declSpecs(declarationSpecifiers)
-    , declarator(declarator)
-    , params(declarationList)
-    , compoundStatement(compoundStatement)
+    : declSpecs(declarationSpecifierList)
+    , decl(declarator)
+    // , params(declarationList)
+    , body(compoundStatement)
   {
     // assert(declarator->is_variable());
+    if (declarationList) {
+      for (auto decl : *declarationList)
+        assert(isa<NormalDeclaration>(decl));
+      oldStyleParams = (std::vector<NormalDeclaration*>*)declarationList;
+    }
   }
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_FUNCTION_DEFINITION;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
-  }
-
-  void acceptChildren(Visitor* visitor) override
-  {
-    declSpecs->accept(visitor);
-    declarator->accept(visitor);
-    if (params != nullptr) {
-      for (auto declaration : *params)
-        declaration->accept(visitor);
-    }
-    compoundStatement->accept(visitor);
   }
 
   const char* name() const
   {
-    return declarator->name();
+    return decl->name();
   }
 
 public:
-  DeclarationSpecifiers* declSpecs;
-  Declarator* declarator;
-  std::vector<Declaration*>* params;
-  CompoundStatement* compoundStatement;
+  DeclarationSpecifierList* declSpecs;
+  Declarator* decl;
+  std::vector<NormalDeclaration*>* oldStyleParams = nullptr;
+  CompoundStatement* body;
 };
 
 class TranslationUnit : public Node
 {
 public:
-  TranslationUnit()
-    : Node(N_TRANSLATION_UNIT)
-  {}
+  TranslationUnit() {}
 
-  void push_back(Node* node)
+  void push_back(FileUnit* node)
   {
-    assert(isa<FunctionDefinition>(node) || isa<Declaration>(node));
-
-    if (isa<FunctionDefinition>(node))
-      funcDefOrDecl.push_back(cast<FunctionDefinition>(node));
-    else
-      funcDefOrDecl.push_back(cast<Declaration>(node));
+    decls.push_back(node);
   }
 
-  static bool classof(const Node* node)
-  {
-    return node->getKind() == N_TRANSLATION_UNIT;
-  }
-
-  void accept(Visitor* visitor) override
+  void accept(Visitor* visitor)
   {
     visitor->visit(this);
   }
 
-  void acceptChildren(Visitor* visitor) override
-  {
-    for (auto* i : funcDefOrDecl)
-      i->accept(visitor);
-  }
-
 public:
-  std::vector<Node*> funcDefOrDecl;
+  std::vector<FileUnit*> decls;
 };

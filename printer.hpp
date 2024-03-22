@@ -12,7 +12,7 @@ public:
   void printIndent(const char* str, ...)
   {
     for (int i = 0; i < indentLevel; i++)
-      printf("|   ");
+      printf("| ");
 
     va_list args;
     va_start(args, str);
@@ -24,522 +24,555 @@ public:
   {
     printIndent("GenericAssociation\n");
     indentLevel++;
-    n->acceptChildren(this);
+
+    n->typeName->accept(this);
+    n->expr->accept(this);
+
     indentLevel--;
   }
   void visit(GenericSelection* n) override
   {
     printIndent("GenericSelection\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->expr->accept(this);
+    if (n->associations)
+      for (auto assoc : *n->associations)
+        assoc->accept(this);
     indentLevel--;
   }
   void visit(Identifier* n) override
   {
     printIndent("Identifier %s\n", n->name);
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
   }
   void visit(ConstantI* n) override
   {
     printIndent("ConstantI %d\n", n->val);
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
   }
   void visit(ConstantF* n) override
   {
     printIndent("ConstantF %f\n", n->val);
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
   }
   void visit(EnumerationConstantUse* n) override
   {
     printIndent("EnumerationConstantUse %s\n", n->_enum);
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
   }
   void visit(StringLiteral* n) override
   {
     printIndent("StringLiteral %s\n", n->val);
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
   }
   void visit(FuncName* n) override
   {
     printIndent("FuncName __func__\n");
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
   }
   void visit(ParenthesizedExpression* n) override
   {
     printIndent("ParenthesizedExpression\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->expr->accept(this);
     indentLevel--;
   }
-  void visit(UnaryExpressionExpr* n) override
+  void visit(UnaryExpressionOnExpr* n) override
   {
-    printIndent("UnaryExpressionExpr\n");
+    printIndent("UnaryExpressionOnExpr\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->expr->accept(this);
     indentLevel--;
   }
   void visit(UnaryExpressionOnType* n) override
   {
     printIndent("UnaryExpressionOnType\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->typeName->accept(this);
     indentLevel--;
   }
   void visit(CommaExpression* n) override
   {
     printIndent("CommaExpression\n");
     indentLevel++;
-    n->acceptChildren(this);
+    for (auto expr : n->exprs)
+      expr->accept(this);
     indentLevel--;
   }
   void visit(AssignmentExpression* n) override
   {
     printIndent("AssignmentExpression\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->lhs->accept(this);
+    n->rhs->accept(this);
     indentLevel--;
   }
   void visit(ConditionalExpression* n) override
   {
     printIndent("ConditionalExpression\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->cond->accept(this);
+    n->then->accept(this);
+    n->els->accept(this);
     indentLevel--;
   }
   void visit(PostfixExpressionIncOp* n) override
   {
     printIndent("PostfixExpressionIncOp\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->expr->accept(this);
     indentLevel--;
   }
   void visit(PostfixExpressionDecOp* n) override
   {
     printIndent("PostfixExpressionDecOp\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->expr->accept(this);
     indentLevel--;
   }
   void visit(PostfixExpressionCallOp* n) override
   {
     printIndent("PostfixExpressionCallOp\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->expr->accept(this);
+    if (n->args) {
+      for (auto arg : *n->args)
+        arg->accept(this);
+    }
     indentLevel--;
   }
   void visit(PostfixExpressionDotOp* n) override
   {
-    printIndent("PostfixExpressionDotOp\n");
+    printIndent("PostfixExpressionDotOp %s\n", n->field);
     indentLevel++;
-    n->acceptChildren(this);
+    n->expr->accept(this);
     indentLevel--;
   }
   void visit(PostfixExpressionPtrOp* n) override
   {
-    printIndent("PostfixExpressionPtrOp\n");
+    printIndent("PostfixExpressionPtrOp %s\n", n->field);
     indentLevel++;
-    n->acceptChildren(this);
+    n->expr->accept(this);
     indentLevel--;
   }
   void visit(PostfixExpressionIndexOp* n) override
   {
     printIndent("PostfixExpressionIndexOp\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->expr->accept(this);
+    n->index->accept(this);
     indentLevel--;
   }
   void visit(PostfixExpressionCastOp* n) override
   {
     printIndent("PostfixExpressionCastOp\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->typeName->accept(this);
+    if (n->initializerList) {
+      for (auto init : *n->initializerList)
+        init->accept(this);
+    }
     indentLevel--;
   }
   void visit(ArithmeticExpression* n) override
   {
     printIndent("ArithmeticExpression %s\n", ArithmeticExpression::to_string(n->op));
     indentLevel++;
-    n->acceptChildren(this);
+    n->lhs->accept(this);
+    n->rhs->accept(this);
     indentLevel--;
   }
   void visit(CastExpression* n) override
   {
     printIndent("CastExpression\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->typeName->accept(this);
+    n->expr->accept(this);
     indentLevel--;
   }
-  void visit(DesignatorField* n) override
+  void visit(FieldDesignator* n) override
   {
-    printIndent("DesignatorField\n");
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
+    printIndent("FieldDesignator %s\n", n->field);
   }
-  void visit(DesignatorIndex* n) override
+  void visit(IndexDesignator* n) override
   {
-    printIndent("DesignatorIndex\n");
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
+    printIndent("IndexDesignator %d\n", n->index);
   }
   void visit(Designation* n) override
   {
     printIndent("Designation\n");
     indentLevel++;
-    n->acceptChildren(this);
+    if (n->designators) {
+      for (auto desig : *n->designators)
+        desig->accept(this);
+    }
     indentLevel--;
   }
-  void visit(InitializerExpression* n) override
+  void visit(ExpressionInitializer* n) override
   {
-    printIndent("InitializerExpression\n");
+    printIndent("ExpressionInitializer\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->expr->accept(this);
     indentLevel--;
   }
-  void visit(InitializerNested* n) override
+  void visit(NestedInitializer* n) override
   {
-    printIndent("InitializerNested\n");
+    printIndent("NestedInitializer\n");
     indentLevel++;
-    n->acceptChildren(this);
+    if (n->initializers) {
+      for (auto init : *n->initializers)
+        init->accept(this);
+    }
     indentLevel--;
   }
-  void visit(StaticAssertDeclaration* n) override
+  void visit(StaticAssert* n) override
   {
-    printIndent("StaticAssertDeclaration\n");
+    printIndent("StaticAssert\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->expr->accept(this);
     indentLevel--;
   }
   void visit(Enumerator* n) override
   {
     printIndent("Enumerator\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->identifier->accept(this);
+    if (n->expr)
+      n->expr->accept(this);
     indentLevel--;
   }
 
-  void visit(TypeSpecifierBuiltin* n) override
+  void visit(BuiltinTypeSpecifier* n) override
   {
-    printIndent("TypeSpecifierBuiltin %s\n", n->typeName());
+    printIndent("BuiltinTypeSpecifier %s\n", n->typeName());
+  }
+  void visit(SpecifierQualifierList* n) override
+  {
+    printIndent("SpecifierQualifierList\n");
     indentLevel++;
-    n->acceptChildren(this);
+    for (auto spec : n->specs)
+      spec->accept(this);
     indentLevel--;
   }
-  void visit(Specifiers* n) override
+  void visit(AtomicTypeSpecifier* n) override
   {
-    printIndent("Specifiers\n");
+    printIndent("AtomicTypeSpecifier\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->typeName->accept(this);
     indentLevel--;
   }
-  void visit(TypeSpecifierAtomic* n) override
+  void visit(TypedefTypeSpecifier* n) override
   {
-    printIndent("TypeSpecifierAtomic\n");
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
-  }
-  void visit(TypeSpecifierTypedefName* n) override
-  {
-    printIndent("TypeSpecifierTypedefName %s\n", n->name);
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
+    printIndent("TypedefTypeSpecifier %s\n", n->name);
   }
   void visit(StructDeclarator* n) override
   {
     printIndent("StructDeclarator\n");
     indentLevel++;
-    n->acceptChildren(this);
+    if (n->decl)
+      n->decl->accept(this);
     indentLevel--;
   }
-  void visit(StructDeclarationNormal* n) override
+  void visit(NormalStructDeclaration* n) override
   {
-    printIndent("StructDeclarationNormal\n");
+    printIndent("NormalStructDeclaration\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->declSpecs->accept(this);
+    if (n->declarators) {
+      for (auto decl : *n->declarators)
+        decl->accept(this);
+    }
     indentLevel--;
   }
-  void visit(StructDeclarationStaticAssert* n) override
-  {
-    printIndent("StructDeclarationStaticAssert\n");
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
-  }
-  void visit(TypeSpecifierStructOrUnion* n) override
+  void visit(StructUnionTypeSpecifier* n) override
   {
     printIndent(
-      "TypeSpecifierStructOrUnion %s\n",
-      n->type == TypeSpecifierStructOrUnion::StructOrUnion::S_STRUCT ? "struct" : "union");
+      "StructUnionTypeSpecifier %s %s\n",
+      n->kind == StructUnionTypeSpecifier::StructOrUnionKind::S_STRUCT ? "struct" : "union",
+      n->name);
     indentLevel++;
-    n->acceptChildren(this);
+    if (n->declarations) {
+      for (auto decl : *n->declarations)
+        decl->accept(this);
+    }
     indentLevel--;
   }
   void visit(AlignmentSpecifier* n) override
   {
     printIndent("AlignmentSpecifier\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->typeName->accept(this);
     indentLevel--;
   }
-  void visit(DeclarationSpecifiers* n) override
+  void visit(DeclarationSpecifierList* n) override
   {
-    printIndent("DeclarationSpecifiers\n");
+    printIndent("DeclarationSpecifierList\n");
     indentLevel++;
-    n->acceptChildren(this);
+    for (auto spec : n->specs)
+      spec->accept(this);
     indentLevel--;
   }
   void visit(Pointer* n) override
   {
     printIndent("Pointer\n");
     indentLevel++;
-    n->acceptChildren(this);
+    if (n->typeQuals) {
+      for (auto qual : *n->typeQuals)
+        qual->accept(this);
+    }
+    if (n->pointer)
+      n->pointer->accept(this);
     indentLevel--;
   }
-  void visit(TypeSpecifierEnum* n) override
+  void visit(EnumTypeSpecifier* n) override
   {
-    printIndent("TypeSpecifierEnum %s\n", n->name);
+    printIndent("EnumTypeSpecifier %s\n", n->name);
     indentLevel++;
-    n->acceptChildren(this);
+    if (n->enumerators) {
+      for (auto en : *n->enumerators)
+        en->accept(this);
+    }
     indentLevel--;
   }
-  void visit(LabeledStatementIdentifier* n) override
+  void visit(LabeledStatement* n) override
   {
-    printIndent("LabeledStatementIdentifier %s\n", n->identifier);
+    printIndent("LabeledStatement %s\n", n->label);
     indentLevel++;
-    n->acceptChildren(this);
+    n->stmt->accept(this);
     indentLevel--;
   }
-  void visit(LabeledStatementCase* n) override
+  void visit(CaseStatement* n) override
   {
-    printIndent("LabeledStatementCase\n");
+    printIndent("CaseStatement\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->expr->accept(this);
+    n->stmt->accept(this);
     indentLevel--;
   }
-  void visit(LabeledStatementDefault* n) override
+  void visit(DefaultStatement* n) override
   {
-    printIndent("LabeledStatementDefault default\n");
+    printIndent("DefaultStatement default\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->stmt->accept(this);
     indentLevel--;
   }
   void visit(ExpressionStatement* n) override
   {
     printIndent("ExpressionStatement\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->expr->accept(this);
     indentLevel--;
   }
-  void visit(SelectionStatementIf* n) override
+  void visit(IfStatement* n) override
   {
-    printIndent("SelectionStatementIf if\n");
+    printIndent("IfStatement\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->cond->accept(this);
+    n->then->accept(this);
+    if (n->els)
+      n->els->accept(this);
     indentLevel--;
   }
-  void visit(SelectionStatementSwitch* n) override
+  void visit(SwitchStatement* n) override
   {
-    printIndent("SelectionStatementSwitch switch\n");
+    printIndent("SwitchStatement\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->cond->accept(this);
+    n->body->accept(this);
     indentLevel--;
   }
-  void visit(IterationStatementWhile* n) override
+  void visit(WhileStatement* n) override
   {
-    printIndent("IterationStatementWhile while\n");
+    printIndent("WhileStatement\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->cond->accept(this);
+    n->body->accept(this);
     indentLevel--;
   }
-  void visit(IterationStatementDoWhile* n) override
+  void visit(DoWhileStatement* n) override
   {
-    printIndent("IterationStatementDoWhile do\n");
+    printIndent("DoWhileStatement\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->cond->accept(this);
+    n->body->accept(this);
     indentLevel--;
   }
-  void visit(IterationStatementFor* n) override
+  void visit(ForStatement* n) override
   {
-    printIndent("IterationStatementFor for\n");
+    printIndent("ForStatement\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->decl->accept(this);
+    n->init->accept(this);
+    n->cond->accept(this);
+    n->inc->accept(this);
+    n->body->accept(this);
     indentLevel--;
   }
-  void visit(JumpStatementContinue* n) override
+  void visit(ContinueStatement* n) override
   {
-    printIndent("JumpStatementContinue continue\n");
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
+    printIndent("ContinueStatement\n");
   }
-  void visit(JumpStatementBreak* n) override
+  void visit(BreakStatement* n) override
   {
-    printIndent("JumpStatementBreak break\n");
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
+    printIndent("BreakStatement\n");
   }
-  void visit(JumpStatementGoto* n) override
+  void visit(GotoStatement* n) override
   {
-    printIndent("JumpStatementGoto goto %s\n", n->identifier);
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
+    printIndent("GotoStatement %s\n", n->label);
   }
-  void visit(JumpStatementReturn* n) override
+  void visit(ReturnStatement* n) override
   {
-    printIndent("JumpStatementReturn return\n");
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
+    printIndent("ReturnStatement\n");
   }
   void visit(Declarator* n) override
   {
     printIndent("Declarator\n");
     indentLevel++;
-    n->acceptChildren(this);
+    if (n->pointer)
+      n->pointer->accept(this);
+    n->decl->accept(this);
     indentLevel--;
   }
   void visit(AbstractDeclarator* n) override
   {
     printIndent("AbstractDeclarator\n");
     indentLevel++;
-    n->acceptChildren(this);
+    if (n->pointer)
+      n->pointer->accept(this);
+    if (n->decl)
+      n->decl->accept(this);
     indentLevel--;
   }
-  void visit(DirectDeclaratorIdentifier* n) override
+  void visit(IdentifierDeclarator* n) override
   {
-    printIndent("DirectDeclaratorIdentifier %s\n", n->identifier);
+    printIndent("IdentifierDeclarator %s\n", n->identifier);
+  }
+  void visit(ParenthesizedDeclarator* n) override
+  {
+    printIndent("ParenthesizedDeclarator\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->decl->accept(this);
     indentLevel--;
   }
-  void visit(DirectDeclaratorParenthesized* n) override
+  void visit(ArrayDeclarator* n) override
   {
-    printIndent("DirectDeclaratorParenthesized\n");
+    printIndent("ArrayDeclarator [\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->decl->accept(this);
+    if (n->expr)
+      n->expr->accept(this);
+    indentLevel--;
+    printIndent("]\n");
+  }
+  void visit(FunctionDeclarator* n) override
+  {
+    printIndent("FunctionDeclarator\n");
+    indentLevel++;
+    n->decl->accept(this);
+    if (n->params)
+      n->params->accept(this);
     indentLevel--;
   }
-  void visit(DirectDeclaratorArray* n) override
+  void visit(AbstractParenthesizedDeclarator* n) override
   {
-    printIndent("DirectDeclaratorArray [\n");
+    printIndent("AbstractParenthesizedDeclarator\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->decl->accept(this);
     indentLevel--;
   }
-  void visit(DirectDeclaratorFunction* n) override
+  void visit(AbstractArrayDeclarator* n) override
   {
-    printIndent("DirectDeclaratorFunction\n");
+    printIndent("AbstractArrayDeclarator\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->decl->accept(this);
+    if (n->expr)
+      n->expr->accept(this);
     indentLevel--;
   }
-  void visit(DirectAbstractDeclaratorParenthesized* n) override
+  void visit(AbstractFunctionDeclarator* n) override
   {
-    printIndent("DirectAbstractDeclaratorParenthesized\n");
+    printIndent("AbstractFunctionDeclarator\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->decl->accept(this);
+    if (n->params)
+      n->params->accept(this);
     indentLevel--;
   }
-  void visit(DirectAbstractDeclaratorArray* n) override
+  void visit(ParameterDeclaration* n) override
   {
-    printIndent("DirectAbstractDeclaratorArray\n");
+    printIndent("ParameterDeclaration\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->declSpecs->accept(this);
+    n->decl->accept(this);
     indentLevel--;
   }
-  void visit(DirectAbstractDeclaratorFunction* n) override
+  void visit(AbstractParameterDeclaration* n) override
   {
-    printIndent("DirectAbstractDeclaratorFunction\n");
+    printIndent("AbstractParameterDeclaration\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->declSpecs->accept(this);
+    n->decl->accept(this);
     indentLevel--;
   }
-  void visit(ParameterDeclarationDecl* n) override
+  void visit(AnonymousParameterDeclaration* n) override
   {
-    printIndent("ParameterDeclarationDecl\n");
+    printIndent("AnonymousParameterDeclaration\n");
     indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
-  }
-  void visit(ParameterDeclarationAbstDecl* n) override
-  {
-    printIndent("ParameterDeclarationAbstDecl\n");
-    indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
-  }
-  void visit(ParameterDeclarationAnonymous* n) override
-  {
-    printIndent("ParameterDeclarationAnonymous\n");
-    indentLevel++;
-    n->acceptChildren(this);
+    n->declSpecs->accept(this);
     indentLevel--;
   }
   void visit(ParameterList* n) override
   {
     printIndent("ParameterList\n");
     indentLevel++;
-    n->acceptChildren(this);
+    for (auto param : n->params)
+      param->accept(this);
     indentLevel--;
   }
   void visit(InitDeclarator* n) override
   {
     printIndent("InitDeclarator\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->decl->accept(this);
+    if (n->initializer)
+      n->initializer->accept(this);
     indentLevel--;
   }
-  void visit(DeclarationNormal* n) override
+  void visit(NormalDeclaration* n) override
   {
-    printIndent("DeclarationNormal\n");
+    printIndent("NormalDeclaration\n");
     indentLevel++;
-    n->acceptChildren(this);
-    indentLevel--;
-  }
-  void visit(DeclarationStaticAssert* n) override
-  {
-    printIndent("DeclarationStaticAssert\n");
-    indentLevel++;
-    n->acceptChildren(this);
+    n->declSpecs->accept(this);
+    if (n->initDecls) {
+      for (auto initDecl : *n->initDecls)
+        initDecl->accept(this);
+    }
     indentLevel--;
   }
   void visit(TypeName* n) override
   {
     printIndent("TypeName\n");
     indentLevel++;
-    n->acceptChildren(this);
+    n->declSpecs->accept(this);
+    if (n->abstractDeclarator)
+      n->abstractDeclarator->accept(this);
     indentLevel--;
   }
   void visit(CompoundStatement* n) override
   {
     printIndent("CompoundStatement {\n");
     indentLevel++;
-    n->acceptChildren(this);
+    for (auto item : n->blockItems)
+      item->accept(this);
     indentLevel--;
-    printIndent("CompoundStatement }\n");
+    printIndent("}\n");
   }
   void visit(FunctionDefinition* n) override
   {
     printIndent("FunctionDefinition\n");
     indentLevel++;
-    n->acceptChildren(this);
+    if (n->declSpecs)
+      n->declSpecs->accept(this);
+    n->decl->accept(this);
+    if (n->oldStyleParams) {
+      for (auto param : *n->oldStyleParams)
+        param->accept(this);
+    }
+    n->body->accept(this);
     indentLevel--;
   }
 
@@ -547,7 +580,8 @@ public:
   {
     printIndent("TranslationUnit\n");
     indentLevel++;
-    n->acceptChildren(this);
+    for (auto decl : n->decls)
+      decl->accept(this);
     indentLevel--;
   }
 

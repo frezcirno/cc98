@@ -8,28 +8,28 @@ else
 	BSFLAGS =
 endif
 
-SRC = lexer.yy.cpp ast.cpp type.cpp ir.cpp
+SRC = lexer.yy.cpp ast.cpp type.cpp ir.cpp c2.cpp
 
 .PHONY: default
 default: scanner parser translator
 
-scanner: flex bison
+scanner: lexer.yy.cpp parser.tab.cpp
 	g++ scanner.cpp $(SRC) -lfl $(CFLAGS) -o scanner
 
-parser: flex bison
+parser: lexer.yy.cpp parser.tab.cpp
 	g++ parser.cpp parser.tab.cpp $(SRC) -lfl -ly -lm $(CFLAGS) -o parser
 
-translator: flex bison
-	g++ translator.cpp parser.tab.cpp $(SRC) -lfl -ly -lm $(CFLAGS) -o translator
+translator: lexer.yy.cpp parser.tab.cpp
+	g++ translator.cpp x86.cpp parser.tab.cpp $(SRC) -lfl -ly -lm $(CFLAGS) -o translator
 
 graph:
 	bison -v parser.ypp $(BSFLAGS) --graph
 	dot -Tpng parser.dot -o parser.png
 
-bison: parser.ypp
+parser.tab.cpp: parser.ypp
 	bison -v parser.ypp $(BSFLAGS)
 
-flex: lexer.l
+lexer.yy.cpp: lexer.l
 	flex -C -o lexer.yy.cpp $(FXFLAGS) lexer.l
 
 clean:

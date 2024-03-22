@@ -11,7 +11,7 @@ extern int optind, opterr, optopt;
 
 int main(int argc, char **argv) {
   int res;
-  Node *root;
+  FuncUnit *root;
 
   char *input, *output;
 

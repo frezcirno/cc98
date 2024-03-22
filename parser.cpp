@@ -1,11 +1,13 @@
 #include <stdio.h>
 
+#include "ast.hpp"
 #include "parser.tab.hpp"
 #include "printer.hpp"
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv)
+{
   int res;
-  Node *root;
+  TranslationUnit* root;
 
   if (argc <= 1)
     return 1;
@@ -13,7 +15,7 @@ int main(int argc, char **argv) {
   res = parse(argv[1], &root);
   if (res == 0) {
     NodePrinter printer;
-    root->accept(&printer);
+    printer.visit(root);
   }
 
   return res;
