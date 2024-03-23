@@ -23,7 +23,9 @@ public:
 
   const char* getName() const override
   {
-    return name;
+    static char buf[100];
+    snprintf(buf, sizeof(buf), "%%%s", name);
+    return buf;
   }
 
 public:
@@ -82,9 +84,10 @@ public:
 
   void writef(WriteTarget t, const char* fmt, ...)
   {
+    char buffer[1024];
+
     va_list args;
     va_start(args, fmt);
-    char buffer[1024];
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
 
@@ -433,7 +436,10 @@ public:
 
   void writeJumpIfZero(Value* lhs, const char* label)
   {
-    writef(WriteTarget::TEXT, "testl %s, %s\n", lhs->getRegister()->getName());
+    writef(WriteTarget::TEXT,
+           "testl %s, %s\n",
+           lhs->getRegister()->getName(),
+           lhs->getRegister()->getName());
     writef(WriteTarget::TEXT, "je %s\n", label);
   }
 

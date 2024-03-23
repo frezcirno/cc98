@@ -13,13 +13,13 @@ SRC = lexer.yy.cpp ast.cpp type.cpp ir.cpp c2.cpp
 .PHONY: default
 default: scanner parser translator
 
-scanner: lexer.yy.cpp parser.tab.cpp
+scanner: lexer.yy.cpp parser.tab.cpp $(SRC)
 	g++ scanner.cpp $(SRC) -lfl $(CFLAGS) -o scanner
 
-parser: lexer.yy.cpp parser.tab.cpp
+parser: lexer.yy.cpp parser.tab.cpp $(SRC)
 	g++ parser.cpp parser.tab.cpp $(SRC) -lfl -ly -lm $(CFLAGS) -o parser
 
-translator: lexer.yy.cpp parser.tab.cpp
+translator: lexer.yy.cpp parser.tab.cpp $(SRC)
 	g++ translator.cpp x86.cpp parser.tab.cpp $(SRC) -lfl -ly -lm $(CFLAGS) -o translator
 
 graph:

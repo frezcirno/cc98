@@ -1,6 +1,5 @@
 #pragma once
 #include "c2.hpp"
-#include "backend.hpp"
 #include <cstdio>
 #include <cstring>
 #include <iterator>
@@ -363,6 +362,13 @@ public:
   Imm* val;   // value of the symbol
 };
 
+class Register
+{
+public:
+  // "%rax", etc.
+  virtual const char* getName() const = 0;
+};
+
 /**
  * Value class represents a value in the program.
  * It can be a variable, a constant, or a temporary value.
@@ -443,7 +449,7 @@ public:
     if (isInMemory()) {
       sprintf(buf, "-%x(%%rbp)", sym->place);
     } else if (isInRegister()) {
-      sprintf(buf, "%%%s", reg->getName());
+      sprintf(buf, "%s", reg->getName());
     } else {   // isImmediate
       sprintf(buf, "$%d", imm->getInt());
     }

@@ -1,58 +1,52 @@
 #pragma once
 #include <iostream>
 #include <vector>
+#include "type.hpp"
 
 class Value;
 class Symbol;
 
-class Register
-{
-public:
-  // "%rax", etc.
-  virtual const char* getName() const = 0;
-};
-
 class AsmHelper
 {
 public:
-  virtual void writePrologue();
-  virtual void writeEpilogue();
-  virtual void writeGlobalData(const char* label, const char* val);
-  virtual void writeFunctionPrologue(Symbol* sym);
-  virtual void writeFunctionEpilogue();
-  virtual Register* allocateRegister();
-  virtual Value* allocateStack(int size = 8);
-  virtual Value* writeAdd(Value* dest, Value* src);
-  virtual Value* writeSub(Value* dest, Value* src);
-  virtual Value* writeMul(Value* dest, Value* src);
-  virtual Value* writeDiv(Value* dest, Value* src);
-  virtual Value* writeMod(Value* dest, Value* src);
-  virtual Value* writeAnd(Value* dest, Value* src);
-  virtual Value* writeOr(Value* dest, Value* src);
-  virtual Value* writeXor(Value* dest, Value* src);
-  virtual Value* writeShl(Value* dest, Value* src);
-  virtual Value* writeShr(Value* dest, Value* src);
-  virtual Value* writeCmpLt(Value* dest, Value* src);
-  virtual Value* writeCmpGt(Value* dest, Value* src);
-  virtual Value* writeCmpLe(Value* dest, Value* src);
-  virtual Value* writeCmpGe(Value* dest, Value* src);
-  virtual Value* writeCmpEq(Value* dest, Value* src);
-  virtual Value* writeCmpNe(Value* dest, Value* src);
-  virtual Value* writeNeg(Value* dest);
-  virtual Value* writeNot(Value* dest);
-  virtual Value* writeRev(Value* dest);
-  virtual Value* writeAssign(Value* dest, Value* src);
-  virtual Value* writeLoad(Value* dest);
-  virtual Value* writeStore(Value* dest, Value* src);
-  virtual Value* getAddress(Value* val);
-  virtual void writeBreak();
-  virtual void writeContinue();
-  virtual void writeInc(Value* dest);
-  virtual void writeJump(const char* label);
-  virtual void writeJumpIfZero(Value* dest, const char* label);
-  virtual void writeLabel(const char* label);
-  virtual void writeReturn();
-  virtual void writeReturn(Value* dest);
-  virtual void writeDec(Value* dest);
-  virtual Value* writeCall(Value* fn, const std::vector<Value*>& args);
+  virtual void writePrologue() = 0;
+  virtual void writeEpilogue() = 0;
+  virtual void writeGlobalData(const char* label, const char* val) = 0;
+  virtual void writeFunctionPrologue(Symbol* sym) = 0;
+  virtual void writeFunctionEpilogue() = 0;
+  virtual Register* allocateRegister() = 0;
+  virtual Value* allocateStack(int size = 8) = 0;
+  virtual Value* writeAdd(Value* dest, Value* src) = 0;
+  virtual Value* writeSub(Value* dest, Value* src) = 0;
+  virtual Value* writeMul(Value* dest, Value* src) = 0;
+  virtual Value* writeDiv(Value* dest, Value* src) = 0;
+  virtual Value* writeMod(Value* dest, Value* src) = 0;
+  virtual Value* writeAnd(Value* dest, Value* src) = 0;
+  virtual Value* writeOr(Value* dest, Value* src) = 0;
+  virtual Value* writeXor(Value* dest, Value* src) = 0;
+  virtual Value* writeShl(Value* dest, Value* src) = 0;
+  virtual Value* writeShr(Value* dest, Value* src) = 0;
+  virtual Value* writeCmpLt(Value* dest, Value* src) = 0;
+  virtual Value* writeCmpGt(Value* dest, Value* src) = 0;
+  virtual Value* writeCmpLe(Value* dest, Value* src) = 0;
+  virtual Value* writeCmpGe(Value* dest, Value* src) = 0;
+  virtual Value* writeCmpEq(Value* dest, Value* src) = 0;
+  virtual Value* writeCmpNe(Value* dest, Value* src) = 0;
+  virtual Value* writeNeg(Value* dest) = 0;
+  virtual Value* writeNot(Value* dest) = 0;
+  virtual Value* writeRev(Value* dest) = 0;
+  virtual Value* writeAssign(Value* dest, Value* src) = 0;
+  virtual Value* writeLoad(Value* dest) = 0;
+  virtual Value* writeStore(Value* dest, Value* src) = 0;
+  virtual Value* getAddress(Value* val) = 0;
+  virtual void writeBreak() = 0;
+  virtual void writeContinue() = 0;
+  virtual void writeInc(Value* dest) = 0;
+  virtual void writeJump(const char* label) = 0;
+  virtual void writeJumpIfZero(Value* dest, const char* label) = 0;
+  virtual void writeLabel(const char* label) = 0;
+  virtual void writeReturn() = 0;
+  virtual void writeReturn(Value* dest) = 0;
+  virtual void writeDec(Value* dest) = 0;
+  virtual Value* writeCall(Value* fn, const std::vector<Value*>& args) = 0;
 };

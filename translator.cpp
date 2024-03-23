@@ -27,6 +27,7 @@ int main(int argc, char** argv)
     X86Helper x86;
     Translator trans(&x86);
     root->accept(&trans);
+    x86.writeProgram(std::cout);
   }
 
   return res;
