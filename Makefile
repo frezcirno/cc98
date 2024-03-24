@@ -1,36 +1,50 @@
-ifeq ($(DEBUG), 1)
-	CFLAGS = -DDEBUG -g -Wall -I ast
+ifeq ($(DEBUG), 2)
+	CFLAGS = -DDEBUG -g -Wall
 	FXFLAGS = -d
 	BSFLAGS = -t
+else ifeq ($(DEBUG), 1)
+	CFLAGS = -DDEBUG -g -Wall
+	FXFLAGS =
+	BSFLAGS =
 else
-	CFLAGS = -O2 -Wall -I ast
+	CFLAGS = -O2 -Wall
 	FXFLAGS =
 	BSFLAGS =
 endif
 
-SRC = lexer.yy.cpp ast.cpp type.cpp ir.cpp c2.cpp
+SOURCES = \
+	lexer.yy.cpp \
+	ast.cpp \
+	type.cpp \
+	ir.cpp \
+	c2.cpp
 
-.PHONY: default
-default: scanner parser translator
+.PHONY: all
+all: scanner parser translator
 
-scanner: lexer.yy.cpp parser.tab.cpp $(SRC)
-	g++ scanner.cpp $(SRC) -lfl $(CFLAGS) -o scanner
+.PHONY: scanner
+scanner: $(SOURCES) lexer.yy.cpp scanner.cpp | parser.tab.cpp
+	g++ -o $@ $^ -lfl $(CFLAGS)
 
-parser: lexer.yy.cpp parser.tab.cpp $(SRC)
-	g++ parser.cpp parser.tab.cpp $(SRC) -lfl -ly -lm $(CFLAGS) -o parser
+.PHONY: parser
+parser: $(SOURCES) lexer.yy.cpp parser.tab.cpp parser.cpp
+	g++ -o $@ $^ -lfl -ly -lm $(CFLAGS)
 
-translator: lexer.yy.cpp parser.tab.cpp $(SRC)
-	g++ translator.cpp x86.cpp parser.tab.cpp $(SRC) -lfl -ly -lm $(CFLAGS) -o translator
+.PHONY: translator
+translator: $(SOURCES) lexer.yy.cpp parser.tab.cpp translator.cpp
+	g++ -o $@ $^ -lfl -ly -lm $(CFLAGS)
 
-graph:
-	bison -v parser.ypp $(BSFLAGS) --graph
+.PHONY: graph
+graph: parser.ypp
+	bison -v $(BSFLAGS) --graph $^
 	dot -Tpng parser.dot -o parser.png
 
 parser.tab.cpp: parser.ypp
-	bison -v parser.ypp $(BSFLAGS)
+	bison -v $(BSFLAGS) $^
 
 lexer.yy.cpp: lexer.l
-	flex -C -o lexer.yy.cpp $(FXFLAGS) lexer.l
+	flex -C -o $@ $(FXFLAGS) $^
 
+.PHONY: clean
 clean:
-	rm -f *.o *.yy.c *.yy.cpp *.tab.c *.tab.h *.tab.cpp *.tab.hpp scanner parser parser.output parser.dot parser.png
+	rm -f *.o *.yy.c *.yy.cpp *.tab.c *.tab.h *.tab.cpp *.tab.hpp scanner parser translator parser.output parser.dot parser.png

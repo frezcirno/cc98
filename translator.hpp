@@ -20,18 +20,6 @@ public:
   {}
 
 public:
-  void writeDataSection(std::ostream& os)
-  {
-    os << ".section .data\n";
-    os << ".align 16\n";
-  }
-
-  void writeTextSection(std::ostream& os)
-  {
-    os << ".section .text\n";
-    os << ".align 16\n";
-  }
-
   void writeFunction(std::ostream& os, Symbol* f)
   {
     auto scope = scopes.getCurrent();
@@ -76,9 +64,9 @@ public:
       case ArithmeticExpression::R_LT_OP:
         return out->writeCmpLt(lhs, rhs);
       case ArithmeticExpression::R_GT_OP:
-        return out->writeCmpGt(rhs, lhs);
+        return out->writeCmpGt(lhs, rhs);
       case ArithmeticExpression::R_LE_OP:
-        return out->writeCmpLe(rhs, lhs);
+        return out->writeCmpLe(lhs, rhs);
       case ArithmeticExpression::R_GE_OP:
         return out->writeCmpGe(lhs, rhs);
       case ArithmeticExpression::E_EQ_OP:
@@ -101,8 +89,8 @@ public:
   // assignment-expression ::= unary-expression assignment-operator assignment-expression
   Value* visitExpr(AssignmentExpression* n)
   {
-    auto lhs = n->lhs->acceptExpr(this);
-    auto rhs = n->rhs->acceptExpr(this);
+    Value* lhs = n->lhs->acceptExpr(this);
+    Value* rhs = n->rhs->acceptExpr(this);
     Value* res;
     switch (n->op) {
       case AssignmentExpression::ASSIGN:
@@ -376,9 +364,12 @@ public:
   void visitInitializer(Initializer* n, Symbol* sym)
   {
     if (isa<ExpressionInitializer>(n)) {
-      auto ia = cast<ExpressionInitializer>(n);
-      auto val = ia->expr->evalConst(scopes);
+      auto ei = cast<ExpressionInitializer>(n);
+      Imm* val = ei->expr->evalConst(scopes);
       sym->setValue(val);
+      out->writeComment("initialize %s", sym->getName());
+      out->writeAssign(new Value(sym), new Value(val));
+
     } else if (isa<NestedInitializer>(n)) {
       // auto in = cast<NestedInitializer>(n);
       // for (auto init : *in->initializers) {
@@ -776,10 +767,10 @@ public:
 
   void visit(WhileStatement* n)
   {
-    auto cond = n->cond->acceptExpr(this);
     std::string loopLabel = "loop" + std::to_string(labelCounter++);
     std::string endLabel = "end" + std::to_string(labelCounter++);
     out->writeLabel(loopLabel.c_str());
+    Value* cond = n->cond->acceptExpr(this);
     out->writeJumpIfZero(cond, endLabel.c_str());
     n->body->accept(this);
     out->writeJump(loopLabel.c_str());
@@ -1006,7 +997,7 @@ public:
   // init-declarator ::= declarator (= initializer)?
   void visit(NormalDeclaration* n)
   {
-    auto typ = parseFullSpecs(n->declSpecs);
+    Type* typ = parseFullSpecs(n->declSpecs);
 
     if (typ->is_aggregate()) {
       // declare a struct/union/enum type
@@ -1021,8 +1012,7 @@ public:
         // init-declarator ::= declarator (= initializer)?
         Symbol* sym = visitDecl(initDecl->decl, typ);
 
-        sym->place = scopes.getCurrent()->stack_size;
-        scopes.getCurrent()->stack_size += sym->getType()->getSize();
+        sym->place = (scopes.getCurrent()->stack_size += sym->getType()->getSize());
 
         // Initializer: { 1, 2, 3 }
         if (initDecl->initializer) {
@@ -1043,9 +1033,6 @@ public:
     scopes.enter(Scope::GLOBAL);
     for (auto decl : n->decls)
       decl->accept(this);
-
-    writeDataSection(std::cout);
-    writeTextSection(std::cout);
   }
 
 private:

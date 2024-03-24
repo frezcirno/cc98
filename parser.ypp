@@ -732,8 +732,9 @@ int sym_type(const char *) {
 int parse(const char *file, TranslationUnit **root) {
     int rv;
     driver_t driver;
+    memset(&driver, 0, sizeof(driver));
 
-#ifdef DEBUG
+#if DEBUG==2
     yydebug = 1;
 #endif
 

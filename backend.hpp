@@ -35,6 +35,7 @@ public:
   virtual Value* writeNeg(Value* dest) = 0;
   virtual Value* writeNot(Value* dest) = 0;
   virtual Value* writeRev(Value* dest) = 0;
+  virtual void writeComment(const char* fmt, ...) = 0;
   virtual Value* writeAssign(Value* dest, Value* src) = 0;
   virtual Value* writeLoad(Value* dest) = 0;
   virtual Value* writeStore(Value* dest, Value* src) = 0;

@@ -437,7 +437,7 @@ public:
     return storage == Storage::IMMEDIATE;
   }
 
-  Imm* getImmediate() const
+  Imm* getImm() const
   {
     return imm;
   }

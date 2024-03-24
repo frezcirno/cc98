@@ -304,7 +304,7 @@ public:
 
   virtual Imm* evalConst(const ScopeManager& scopes) const
   {
-    return nullptr;
+    throw std::runtime_error("not a constant expression");
   }
 
   virtual Value* acceptExpr(Visitor* visitor) = 0;

@@ -2,7 +2,7 @@
 
 #include "ast.hpp"
 #include "parser.tab.hpp"
-#include "printer.hpp"
+#include "ast_printer.hpp"
 
 int main(int argc, char** argv)
 {

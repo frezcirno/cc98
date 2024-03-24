@@ -417,6 +417,10 @@ public:
   void visit(ReturnStatement* n) override
   {
     printIndent("ReturnStatement\n");
+    indentLevel++;
+    if (n->expr)
+      n->expr->accept(this);
+    indentLevel--;
   }
   void visit(Declarator* n) override
   {

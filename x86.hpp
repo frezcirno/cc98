@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -29,10 +30,10 @@ public:
   }
 
 public:
-  static const Register *dil, *sil, *dl, *cl, *r8b, *r9b;
-  static const Register *di, *si, *dx, *cx, *r8w, *r9w;
-  static const Register *edi, *esi, *edx, *ecx, *r8d, *r9d;
-  static const Register *rdi, *rsi, *rdx, *rcx, *r8, *r9;
+  static const std::shared_ptr<Register> dil, sil, dl, cl, r8b, r9b;
+  static const std::shared_ptr<Register> di, si, dx, cx, r8w, r9w;
+  static const std::shared_ptr<Register> edi, esi, edx, ecx, r8d, r9d;
+  static const std::shared_ptr<Register> rdi, rsi, rdx, rcx, r8, r9;
 
 private:
   const char* name;
@@ -78,18 +79,27 @@ public:
    */
   void writeProgram(std::ostream& os)
   {
+    os << ".section .data\n";
+    os << ".align 16\n";
     os << dataSection;
+
+    os << ".section .text\n";
+    os << ".align 16\n";
     os << textSection;
   }
 
   void writef(WriteTarget t, const char* fmt, ...)
   {
-    char buffer[1024];
-
     va_list args;
     va_start(args, fmt);
-    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    writevf(t, fmt, args);
     va_end(args);
+  }
+
+  void writevf(WriteTarget t, const char* fmt, va_list args)
+  {
+    char buffer[1024];
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
 
     if (t == WriteTarget::TEXT)
       textSection.append(buffer);
@@ -97,13 +107,7 @@ public:
       dataSection.append(buffer);
   }
 
-  void writePrologue()
-  {
-    std::cout << ".file \"a.c\"\n";
-    std::cout << ".text\n";
-    std::cout << ".globl main\n";
-    std::cout << ".type main, @function\n";
-  }
+  void writePrologue() {}
 
   void writeEpilogue() {}
 
@@ -120,11 +124,6 @@ public:
   void writeFloat(WriteTarget t, float f)
   {
     writef(t, ".float %f\n", f);
-  }
-
-  void writeComment(WriteTarget t, const char* comment)
-  {
-    writef(t, "# %s\n", comment);
   }
 
   void writeLabel(WriteTarget t, const char* labelName)
@@ -176,8 +175,11 @@ public:
     Value* r = moveToFreeRegister(lhs);
 
     if (rhs->isImmediate())
-      writef(
-        WriteTarget::TEXT, "%sq $%d, %s\n", op, rhs->getImmediate(), r->getRegister()->getName());
+      writef(WriteTarget::TEXT,
+             "%sq $%d, %s\n",
+             op,
+             rhs->getImm()->getInt(),
+             r->getRegister()->getName());
     else if (rhs->isInRegister())
       writef(WriteTarget::TEXT,
              "%sq %s, %s\n",
@@ -339,7 +341,8 @@ public:
 
     if (lhs->isInMemory()) {
       if (rhs->isImmediate())   // immediate -> memory
-        writef(WriteTarget::TEXT, "movq $%d, -%d(%%rbp)\n", rhs->getImmediate(), lhs->sym->place);
+        writef(
+          WriteTarget::TEXT, "movq $%d, -%d(%%rbp)\n", rhs->getImm()->getInt(), lhs->sym->place);
       else if (rhs->isInMemory()) {   // memory -> memory
         Register* reg = allocateRegister();
         writef(WriteTarget::TEXT, "movq -%d(%%rbp), %s\n", rhs->sym->place, reg->getName());
@@ -351,8 +354,10 @@ public:
                lhs->sym->place);
     } else {
       if (rhs->isImmediate())   // immediate -> register
-        writef(
-          WriteTarget::TEXT, "movq $%d, %s\n", rhs->getImmediate(), lhs->getRegister()->getName());
+        writef(WriteTarget::TEXT,
+               "movq $%d, %s\n",
+               rhs->getImm()->getInt(),
+               lhs->getRegister()->getName());
       else if (rhs->isInMemory())   // memory -> register
         writef(WriteTarget::TEXT,
                "movq -%d(%%rbp), %s\n",
@@ -368,9 +373,18 @@ public:
     return lhs;
   }
 
-  Register* allocateRegister()
+  std::shared_ptr<Register> allocateRegister()
   {
-    return new X86Register("r8");
+    static int regCount = 0;
+    static const char* registers[] = {
+      "rdi",
+      "rsi",
+      "rdx",
+      "rcx",
+      "r8",
+      "r9",
+    };
+    return new X86Register(registers[regCount++ % 6]);
   }
 
   /**
@@ -386,7 +400,7 @@ public:
 
     Register* reg = allocateRegister();
     if (val->isImmediate())
-      writef(WriteTarget::TEXT, "movq $%d, %s\n", val->getImmediate(), reg->getName());
+      writef(WriteTarget::TEXT, "movq $%d, %s\n", val->getImm()->getInt(), reg->getName());
     else if (val->isInMemory())   // In Memory
       writef(WriteTarget::TEXT, "movq -%d(%%rbp), %s\n", val->sym->place, reg->getName());
     else
@@ -408,13 +422,13 @@ public:
       return new Value(reg);
     } else if (lhs->isInRegister()) {
       // dereference: movq (%reg), %reg
-      Register* reg = allocateRegister();
+      Register* reg = (lhs->isRValue() ? lhs->getRegister() : allocateRegister());
       writef(WriteTarget::TEXT, "movq (%s), %s\n", lhs->getRegister()->getName(), reg->getName());
       return new Value(reg);
     } else {   // immediate
       // dereference: movq -%d(%%rbp), %reg
       Register* reg = allocateRegister();
-      writef(WriteTarget::TEXT, "movq $%d, %s\n", lhs->getImmediate(), reg->getName());
+      writef(WriteTarget::TEXT, "movq $%d, %s\n", lhs->getImm()->getInt(), reg->getName());
       return new Value(reg);
     }
   }
@@ -475,6 +489,16 @@ public:
     Register* reg = allocateRegister();
     writef(WriteTarget::TEXT, "leaq -%d(%%rbp), %s\n", val->sym->place, reg->getName());
     return new Value(reg);
+  }
+
+  void writeComment(const char* fmt, ...)
+  {
+    va_list args;
+    va_start(args, fmt);
+    writef(WriteTarget::TEXT, "# ");
+    writevf(WriteTarget::TEXT, fmt, args);
+    writef(WriteTarget::TEXT, "\n");
+    va_end(args);
   }
 
 private:
