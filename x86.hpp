@@ -13,30 +13,26 @@
 
 class X86Register : public Register
 {
+
 public:
-  X86Register(const char* name)
-    : name(name)
-  {}
-
-  X86Register(const X86Register& rhs)
-    : name(rhs.name)
-  {}
-
   const char* getName() const override
   {
-    static char buf[100];
-    snprintf(buf, sizeof(buf), "%%%s", name);
-    return buf;
+    return name;
   }
 
-public:
-  static const std::shared_ptr<Register> dil, sil, dl, cl, r8b, r9b;
-  static const std::shared_ptr<Register> di, si, dx, cx, r8w, r9w;
-  static const std::shared_ptr<Register> edi, esi, edx, ecx, r8d, r9d;
-  static const std::shared_ptr<Register> rdi, rsi, rdx, rcx, r8, r9;
+  int getSize() const override
+  {
+    return size;
+  }
+
+  X86Register(const char* name, int size)
+    : name(name)
+    , size(size)
+  {}
 
 private:
   const char* name;
+  int size;
 };
 
 class X86Helper : public AsmHelper
@@ -58,6 +54,26 @@ public:
     TEXT,
     WORD
   };
+
+  X86Helper()
+  {
+    registers = {
+      std::make_shared<X86Register>("%r8d", 8), std::make_shared<X86Register>("%r9d", 8),
+      std::make_shared<X86Register>("%rdi", 8), std::make_shared<X86Register>("%rsi", 8),
+      std::make_shared<X86Register>("%rdx", 8), std::make_shared<X86Register>("%rcx", 8),
+      std::make_shared<X86Register>("%r8", 8),  std::make_shared<X86Register>("%r9", 8),
+      std::make_shared<X86Register>("%r8w", 4), std::make_shared<X86Register>("%r9w", 4),
+      std::make_shared<X86Register>("%edi", 4), std::make_shared<X86Register>("%esi", 4),
+      std::make_shared<X86Register>("%edx", 4), std::make_shared<X86Register>("%ecx", 4),
+      std::make_shared<X86Register>("%di", 2),  std::make_shared<X86Register>("%si", 2),
+      std::make_shared<X86Register>("%dx", 2),  std::make_shared<X86Register>("%cx", 2),
+      std::make_shared<X86Register>("%dil", 1), std::make_shared<X86Register>("%sil", 1),
+      std::make_shared<X86Register>("%dl", 1),  std::make_shared<X86Register>("%cl", 1),
+      std::make_shared<X86Register>("%r8b", 1), std::make_shared<X86Register>("%r9b", 1),
+    };
+  }
+
+
 
   const char* toString(Directive d)
   {
@@ -344,7 +360,7 @@ public:
         writef(
           WriteTarget::TEXT, "movq $%d, -%d(%%rbp)\n", rhs->getImm()->getInt(), lhs->sym->place);
       else if (rhs->isInMemory()) {   // memory -> memory
-        Register* reg = allocateRegister();
+        std::shared_ptr<Register> reg = allocateRegister();
         writef(WriteTarget::TEXT, "movq -%d(%%rbp), %s\n", rhs->sym->place, reg->getName());
         writef(WriteTarget::TEXT, "movq %s, -%d(%%rbp)\n", reg->getName(), lhs->sym->place);
       } else   // register -> memory
@@ -373,18 +389,13 @@ public:
     return lhs;
   }
 
-  std::shared_ptr<Register> allocateRegister()
+  std::shared_ptr<Register> allocateRegister(int size = 8)
   {
-    static int regCount = 0;
-    static const char* registers[] = {
-      "rdi",
-      "rsi",
-      "rdx",
-      "rcx",
-      "r8",
-      "r9",
-    };
-    return new X86Register(registers[regCount++ % 6]);
+    for (auto& reg : registers) {
+      if (reg->getSize() == size && reg.use_count() == 1)   // not in use
+        return reg;
+    }
+    return nullptr;
   }
 
   /**
@@ -398,7 +409,7 @@ public:
     if (val->isRValue() && val->isInRegister())
       return val;
 
-    Register* reg = allocateRegister();
+    std::shared_ptr<Register> reg = allocateRegister();
     if (val->isImmediate())
       writef(WriteTarget::TEXT, "movq $%d, %s\n", val->getImm()->getInt(), reg->getName());
     else if (val->isInMemory())   // In Memory
@@ -417,17 +428,17 @@ public:
     if (lhs->isInMemory()) {
       // load to register: movq -%d(%%rbp), %reg
       // dereference: movq (%reg), %reg
-      Register* reg = allocateRegister();
+      std::shared_ptr<Register> reg = allocateRegister();
       writef(WriteTarget::TEXT, "movq -%d(%%rbp), %s\n", lhs->sym->place, reg->getName());
       return new Value(reg);
     } else if (lhs->isInRegister()) {
       // dereference: movq (%reg), %reg
-      Register* reg = (lhs->isRValue() ? lhs->getRegister() : allocateRegister());
+      std::shared_ptr<Register> reg = (lhs->isRValue() ? lhs->getRegister() : allocateRegister());
       writef(WriteTarget::TEXT, "movq (%s), %s\n", lhs->getRegister()->getName(), reg->getName());
       return new Value(reg);
     } else {   // immediate
       // dereference: movq -%d(%%rbp), %reg
-      Register* reg = allocateRegister();
+      std::shared_ptr<Register> reg = allocateRegister();
       writef(WriteTarget::TEXT, "movq $%d, %s\n", lhs->getImm()->getInt(), reg->getName());
       return new Value(reg);
     }
@@ -486,7 +497,7 @@ public:
   {
     assert(val->isLValue() && val->isInMemory());
     // leaq -%d(%%rbp), %reg
-    Register* reg = allocateRegister();
+    std::shared_ptr<Register> reg = allocateRegister();
     writef(WriteTarget::TEXT, "leaq -%d(%%rbp), %s\n", val->sym->place, reg->getName());
     return new Value(reg);
   }
@@ -507,4 +518,6 @@ private:
 
   std::string dataSection;
   std::string textSection;
+
+  std::vector<std::shared_ptr<Register>> registers;
 };

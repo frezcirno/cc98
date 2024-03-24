@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include <memory>
 #include <vector>
 #include "type.hpp"
 
@@ -14,7 +15,7 @@ public:
   virtual void writeGlobalData(const char* label, const char* val) = 0;
   virtual void writeFunctionPrologue(Symbol* sym) = 0;
   virtual void writeFunctionEpilogue() = 0;
-  virtual Register* allocateRegister() = 0;
+  virtual std::shared_ptr<Register> allocateRegister(int size = 8) = 0;
   virtual Value* allocateStack(int size = 8) = 0;
   virtual Value* writeAdd(Value* dest, Value* src) = 0;
   virtual Value* writeSub(Value* dest, Value* src) = 0;

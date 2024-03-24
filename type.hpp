@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 #include <iterator>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -367,6 +368,7 @@ class Register
 public:
   // "%rax", etc.
   virtual const char* getName() const = 0;
+  virtual int getSize() const = 0;
 };
 
 /**
@@ -395,7 +397,7 @@ public:
     , sym(sym)
   {}
 
-  Value(Register* reg)
+  Value(std::shared_ptr<Register> reg)
     : kind(Kind::RVALUE)
     , storage(Storage::REGISTER)
     , reg(reg)
@@ -422,7 +424,7 @@ public:
     return storage == Storage::REGISTER;
   }
 
-  Register* getRegister() const
+  std::shared_ptr<Register> getRegister() const
   {
     return reg;
   }
@@ -468,7 +470,7 @@ public:
   Value* base;
 
   // for Register
-  Register* reg;
+  std::shared_ptr<Register> reg;
 
   // for IMMEDIATE
   Imm* imm;
