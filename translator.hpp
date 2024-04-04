@@ -1,16 +1,11 @@
 #pragma once
 #include "ast.hpp"
 #include "c2.hpp"
-#include "x86.hpp"
-#include "ir.hpp"
-#include "parser.tab.hpp"
 #include "type.hpp"
 #include <cassert>
 #include <iostream>
-#include <stack>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 class Translator : public Visitor
@@ -193,20 +188,32 @@ public:
     return n->expr->acceptExpr(this);
   }
 
+  // expression INC_OP
+  // Return the value of the expression before increment
+  // as an rvalue
   Value* visitExpr(PostfixExpressionIncOp* n)
   {
-    auto dest = n->expr->acceptExpr(this);
-    if (!dest->isLValue())
-      throw std::runtime_error("invalid lvalue in increment");
-    // TODO: defer increment
-    return dest;
+    Value* dest = n->expr->acceptExpr(this);
+    assert(dest->isLValue() && "increment on rvalue");
+
+    Value* ret = new Value(out->allocateRegister());
+    out->writeAssign(ret, dest);
+
+    out->writeInc(dest);
+    return ret;
   }
 
+  // expression DEC_OP
   Value* visitExpr(PostfixExpressionDecOp* n)
   {
-    auto dest = n->expr->acceptExpr(this);
+    Value* dest = n->expr->acceptExpr(this);
+    assert(dest->isLValue() && "decrement on rvalue");
+
+    Value* ret = new Value(out->allocateRegister());
+    out->writeAssign(ret, dest);
+
     out->writeDec(dest);
-    return dest;
+    return ret;
   }
 
   Value* visitExpr(PostfixExpressionCallOp* n)
@@ -375,7 +382,7 @@ public:
     if (auto ei = dyn_cast<ExpressionInitializer>(n)) {
       Imm* val = ei->expr->evalConst(scopes);
       sym->setValue(new Value(val));
-      out->writeComment("initialize %s", sym->getName());
+      out->writeComment("%s = %d", sym->getName(), val->getInt());
       out->writeAssign(new Value(sym), new Value(val));
     } else if (isa<NestedInitializer>(n)) {
       // auto in = cast<NestedInitializer>(n);
@@ -608,7 +615,9 @@ public:
     auto sym = visitDecl(n->decl, retTypePrefix);
     scopes.add(sym);
 
+    // Function body
     scopes.enter(SC_FUNCTION);
+    scopes.add(new Symbol(SY_FUNCNAME, sym->getName()));
 
     if (n->oldStyleParams) {
       // parse function parameters in K&R style
@@ -678,10 +687,11 @@ public:
 
   void visit(IfStatement* n)
   {
-    std::string elseLabel = "else" + std::to_string(labelCounter++);
+    std::string elseLabel = ".else" + std::to_string(labelCounter++);
 
     auto cond = n->cond->acceptExpr(this);
     out->writeJumpIfZero(cond, elseLabel.c_str());
+
 
     n->then->accept(this);
 
@@ -711,7 +721,7 @@ public:
       // Kindly note: C disallow define new types in func params.
       Type* typ = parseFullSpecs(param->declSpecs);
 
-      assert(!(param->decl && param->decl));   // cannot both
+      assert(!(param->decl && param->adecl));   // cannot both
 
       if (param->decl)
         sym = visitDecl(param->decl, typ);

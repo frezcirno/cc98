@@ -58,13 +58,13 @@ public:
   X86Helper()
   {
     registers = {
-      std::make_shared<X86Register>("%r8d", 8), std::make_shared<X86Register>("%r9d", 8),
       std::make_shared<X86Register>("%rdi", 8), std::make_shared<X86Register>("%rsi", 8),
       std::make_shared<X86Register>("%rdx", 8), std::make_shared<X86Register>("%rcx", 8),
       std::make_shared<X86Register>("%r8", 8),  std::make_shared<X86Register>("%r9", 8),
-      std::make_shared<X86Register>("%r8w", 4), std::make_shared<X86Register>("%r9w", 4),
+      std::make_shared<X86Register>("%r8d", 4), std::make_shared<X86Register>("%r9d", 4),
       std::make_shared<X86Register>("%edi", 4), std::make_shared<X86Register>("%esi", 4),
       std::make_shared<X86Register>("%edx", 4), std::make_shared<X86Register>("%ecx", 4),
+      std::make_shared<X86Register>("%r8w", 2), std::make_shared<X86Register>("%r9w", 2),
       std::make_shared<X86Register>("%di", 2),  std::make_shared<X86Register>("%si", 2),
       std::make_shared<X86Register>("%dx", 2),  std::make_shared<X86Register>("%cx", 2),
       std::make_shared<X86Register>("%dil", 1), std::make_shared<X86Register>("%sil", 1),
@@ -461,6 +461,11 @@ public:
     writef(WriteTarget::TEXT, "incl %s\n", lhs->getRegister()->getName());
   }
 
+  void writeDec(Value* lhs)
+  {
+    writef(WriteTarget::TEXT, "decl %s\n", lhs->getRegister()->getName());
+  }
+
   void writeJump(const char* label)
   {
     writef(WriteTarget::TEXT, "jmp %s\n", label);
@@ -480,11 +485,23 @@ public:
     writef(WriteTarget::TEXT, "%s:\n", label);
   }
 
-  void writeReturn() {}
+  void writeReturn()
+  {
+    writef(WriteTarget::TEXT, "leave\n");
+    writef(WriteTarget::TEXT, "ret\n");
+  }
 
-  void writeReturn(Value* lhs) {}
-
-  void writeDec(Value* lhs) {}
+  void writeReturn(Value* lhs)
+  {
+    // mov lhs, %rax
+    if (lhs->isImmediate())
+      writef(WriteTarget::TEXT, "movq $%d, %%rax\n", lhs->getImm()->getInt());
+    else if (lhs->isInMemory())
+      writef(WriteTarget::TEXT, "movq -%d(%%rbp), %%rax\n", lhs->sym->place);
+    else
+      writef(WriteTarget::TEXT, "movq %s, %%rax\n", lhs->getRegister()->getName());
+    writeReturn();
+  }
 
   Value* writeCall(Value* fn, const std::vector<Value*>& args)
   {

@@ -486,7 +486,7 @@ public:
 
   Imm* evalConst(const ScopeManager& scopes) const override
   {
-    const std::string& name = scopes.findScope(SC_FUNCTION)->getName();
+    const std::string& name = scopes.findSymbol(nullptr, SY_FUNCNAME)->getName();
     return new Imm(name.c_str(), ty_char.array_of(name.size()));
   }
 
