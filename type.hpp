@@ -285,17 +285,21 @@ private:
 
 public:
   std::vector<Symbol*> params;
+  bool hasEllipsis;
 };
 
 enum SymbolKind
 {
-  SK_TYPEDEF,
-  SK_VARIABLE,
-  SK_FUNCTION,
-  SK_LABEL,
-  SK_CASE_LABEL,
-  SK_DEFAULT_LABEL,
-  SK_ENUMERATION_CONSTANT,
+  SY_TYPEDEF,
+  SY_ABSTRACT_VARIABLE,   // used when we only need the type, e.g. function prototype
+  SY_VARIABLE,
+  SY_LABEL,
+  SY_CASE_LABEL,
+  SY_DEFAULT_LABEL,
+  SY_CONTINUE,
+  SY_BREAK,
+  SY_ENUMERATION_CONSTANT,
+  SY_NONKIND,
 };
 
 class Symbol
@@ -321,19 +325,19 @@ public:
     typ = t;
   }
 
-  Imm* getValue() const
+  Value* getValue() const
   {
     return val;
   }
 
-  void setValue(Imm* v)
+  void setValue(Value* v)
   {
     val = v;
   }
 
   bool isVariable() const
   {
-    return kind == SK_VARIABLE;
+    return kind == SY_VARIABLE;
   }
 
   /*
@@ -342,7 +346,7 @@ public:
   */
   bool with_value() const
   {
-    return kind == SK_VARIABLE && val != nullptr;
+    return kind == SY_VARIABLE && val != nullptr;
   }
 
 public:
@@ -360,7 +364,7 @@ public:
   std::string label;   // label name for the symbol
 
   // for VARIABLE, ENUM, FUNCTION
-  Imm* val;   // value of the symbol
+  Value* val;   // value of the symbol
 };
 
 class Register
@@ -378,12 +382,6 @@ public:
 class Value
 {
 public:
-  enum class Kind
-  {
-    LVALUE,   // variable, in register or in memory
-    RVALUE,   // temporary value, in register or just a constant
-  };
-
   enum class Storage
   {
     REGISTER,
@@ -392,31 +390,31 @@ public:
   };
 
   Value(Symbol* sym)
-    : kind(Kind::LVALUE)
+    : rvalue(false)
     , storage(Storage::MEMORY)
     , sym(sym)
   {}
 
   Value(std::shared_ptr<Register> reg)
-    : kind(Kind::RVALUE)
+    : rvalue(true)
     , storage(Storage::REGISTER)
     , reg(reg)
   {}
 
   Value(Imm* imm)
-    : kind(Kind::RVALUE)
+    : rvalue(true)
     , storage(Storage::IMMEDIATE)
     , imm(imm)
   {}
 
   bool isLValue() const
   {
-    return kind == Kind::LVALUE;
+    return !rvalue;
   }
 
   bool isRValue() const
   {
-    return kind == Kind::RVALUE;
+    return rvalue;
   }
 
   bool isInRegister() const
@@ -460,7 +458,9 @@ public:
   }
 
 public:
-  Kind kind;
+  // left value: variable, in register or in memory
+  // right value: temporary value, in register or just a constant
+  bool rvalue;
 
   Storage storage;
 
@@ -474,6 +474,15 @@ public:
 
   // for IMMEDIATE
   Imm* imm;
+};
+
+enum ScopeKind
+{
+  SC_GLOBAL,
+  SC_LOCAL,
+  SC_FUNCTION,
+  SC_SWITCH,
+  SC_LOOP,
 };
 
 /**
@@ -492,36 +501,38 @@ class Scope
   friend class ScopeManager;
 
 public:
-  enum ScopeKind
-  {
-    GLOBAL,
-    LOCAL,
-    FUNCTION,
-    SWITCH,
-    LOOP,
-  };
-
   Scope(Scope* parent, ScopeKind kind)
     : kind(kind)
     , parent(parent)
   {}
 
   Scope(Scope* parent)
-    : Scope(parent, LOCAL)
+    : Scope(parent, SC_LOCAL)
   {}
+
+  void setName(const char* name)
+  {
+    this->name = name;
+  }
+
+  const std::string& getName() const
+  {
+    return this->name;
+  }
 
   void add(Symbol* sym)
   {
     symbols.push_back(sym);
   }
 
-  Symbol* find(const char* name)
+  Symbol* find(const char* name, SymbolKind kind)
   {
-    for (auto sym : symbols) {
-      if (strcmp(sym->getName(), name) == 0)
-        return sym;
+    for (auto sym = symbols.rbegin(); sym != symbols.rend(); ++sym) {
+      if ((!name || strcmp((*sym)->getName(), name) == 0) &&
+          (kind == SY_NONKIND || (*sym)->kind == kind))
+        return *sym;
     }
-    return parent ? parent->find(name) : nullptr;
+    return parent ? parent->find(name, kind) : nullptr;
   }
 
   Scope* getParent() const
@@ -537,6 +548,7 @@ public:
 private:
   ScopeKind kind;
   Scope* parent;
+  std::string name;
   std::vector<Symbol*> symbols;
 
 public:
@@ -547,11 +559,11 @@ class ScopeManager
 {
 public:
   ScopeManager()
-    : global(new Scope(nullptr))
-    , current(global)
+    : root(new Scope(nullptr))
+    , current(root)
   {}
 
-  void enter(Scope::ScopeKind kind)
+  void enter(ScopeKind kind)
   {
     current = new Scope(current, kind);
   }
@@ -566,23 +578,12 @@ public:
     current->add(sym);
   }
 
-  Symbol* find(const char* name) const
+  Symbol* findSymbol(const char* name, SymbolKind kind) const
   {
-    return current->find(name);
+    return current->find(name, kind);
   }
 
-  Symbol* find(const char* name, SymbolKind kind) const
-  {
-    for (Scope* s = current; s; s = s->getParent()) {
-      for (auto sym : s->getSymbols()) {
-        if (strcmp(sym->getName(), name) == 0 && sym->kind == kind)
-          return sym;
-      }
-    }
-    return nullptr;
-  }
-
-  Scope* find(Scope::ScopeKind kind)
+  Scope* findScope(ScopeKind kind) const
   {
     for (Scope* s = current; s; s = s->getParent()) {
       if (s->kind == kind)
@@ -591,9 +592,18 @@ public:
     return nullptr;
   }
 
-  Scope* getGlobal() const
+  Scope* findBreakableScope() const
   {
-    return global;
+    for (Scope* s = current; s; s = s->getParent()) {
+      if (s->kind == SC_SWITCH || s->kind == SC_LOOP)
+        return s;
+    }
+    return nullptr;
+  }
+
+  Scope* getRoot() const
+  {
+    return root;
   }
 
   Scope* getCurrent() const
@@ -601,12 +611,7 @@ public:
     return current;
   }
 
-  Scope* getFunctionScope()
-  {
-    return find(Scope::LOCAL);
-  }
-
 private:
-  Scope* global;
+  Scope* root;
   Scope* current;
 };

@@ -444,10 +444,17 @@ public:
     }
   }
 
-  Value* writeStore(Value* lhs, Value* rhs) {}
-
-  void writeBreak() {}
-  void writeContinue() {}
+  Value* writeStore(Value* lhs, Value* rhs)
+  {
+    if (rhs->isLValue()) {
+      // mov lhs, rhs
+      writef(WriteTarget::TEXT,
+             "movq %s, %s\n",
+             rhs->getRegister()->getName(),
+             lhs->getRegister()->getName());
+    } else {
+    }
+  }
 
   void writeInc(Value* lhs)
   {

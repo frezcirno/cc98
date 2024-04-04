@@ -71,20 +71,6 @@ public:
     n->expr->accept(this);
     indentLevel--;
   }
-  void visit(UnaryExpressionOnExpr* n) override
-  {
-    printIndent("UnaryExpressionOnExpr\n");
-    indentLevel++;
-    n->expr->accept(this);
-    indentLevel--;
-  }
-  void visit(UnaryExpressionOnType* n) override
-  {
-    printIndent("UnaryExpressionOnType\n");
-    indentLevel++;
-    n->typeName->accept(this);
-    indentLevel--;
-  }
   void visit(CommaExpression* n) override
   {
     printIndent("CommaExpression\n");
@@ -504,21 +490,6 @@ public:
     n->decl->accept(this);
     indentLevel--;
   }
-  void visit(AbstractParameterDeclaration* n) override
-  {
-    printIndent("AbstractParameterDeclaration\n");
-    indentLevel++;
-    n->declSpecs->accept(this);
-    n->decl->accept(this);
-    indentLevel--;
-  }
-  void visit(AnonymousParameterDeclaration* n) override
-  {
-    printIndent("AnonymousParameterDeclaration\n");
-    indentLevel++;
-    n->declSpecs->accept(this);
-    indentLevel--;
-  }
   void visit(ParameterList* n) override
   {
     printIndent("ParameterList\n");
@@ -552,8 +523,8 @@ public:
     printIndent("TypeName\n");
     indentLevel++;
     n->declSpecs->accept(this);
-    if (n->abstractDeclarator)
-      n->abstractDeclarator->accept(this);
+    if (n->adecl)
+      n->adecl->accept(this);
     indentLevel--;
   }
   void visit(CompoundStatement* n) override

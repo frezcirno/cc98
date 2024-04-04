@@ -41,8 +41,6 @@ public:
   virtual Value* writeLoad(Value* dest) = 0;
   virtual Value* writeStore(Value* dest, Value* src) = 0;
   virtual Value* getAddress(Value* val) = 0;
-  virtual void writeBreak() = 0;
-  virtual void writeContinue() = 0;
   virtual void writeInc(Value* dest) = 0;
   virtual void writeJump(const char* label) = 0;
   virtual void writeJumpIfZero(Value* dest, const char* label) = 0;

@@ -1,5 +1,6 @@
 #pragma once
 #include "ast.hpp"
+#include "c2.hpp"
 #include "x86.hpp"
 #include "ir.hpp"
 #include "parser.tab.hpp"
@@ -148,7 +149,7 @@ public:
   // comma-expression ::= assignment-expression , comma-expression
   Value* visitExpr(CommaExpression* n)
   {
-    Value* dest;
+    Value* dest = nullptr;
     for (auto expr : n->exprs)
       dest = expr->acceptExpr(this);
     return dest;
@@ -253,9 +254,10 @@ public:
   }
 
   // unary-expression-on-expr ::= postfix-expression
-  //                    | ++| -- unary-expression
-  //                    | unary-operator cast-expression
-  //                    | sizeof unary-expression
+  //                            | ++ expression
+  //                            | -- expression
+  //                            | &*+-!~ expression
+  //                            | sizeof expression
   Value* visitExpr(UnaryExpressionOnExpr* n)
   {
     Value* val = nullptr;
@@ -293,18 +295,23 @@ public:
         break;
       case UnaryExpressionOnExpr::U_SIZEOF_OP:
         val = n->expr->acceptExpr(this);
+        val = new Value(new Imm(val->sym->typ->getSize()));
         break;
     }
     return val;
   }
 
   // unary-expression-on-type ::= sizeof ( type-name )
-  //                           | sizeof unary-expression
-  Value* visitExpr(UnaryExpressionOnType* n) {}
+  //                           | alignof ( type-name )
+  Value* visitExpr(UnaryExpressionOnType* n)
+  {
+    Type* typ = parseTypeName(n->typeName);
+    return new Value(new Imm((n->op == UnaryExpressionOnType::U_SIZEOF_OP ? typ->getSize() : 8)));
+  }
 
   Value* visitExpr(Identifier* n)
   {
-    auto sym = scopes.find(n->name, SK_VARIABLE);
+    auto sym = scopes.findSymbol(n->name, SY_VARIABLE);
     if (!sym) {
       std::cerr << "error: undefined variable " << n->name << std::endl;
       exit(1);
@@ -320,7 +327,7 @@ public:
     return new Value(imm);
   }
 
-  // pointer ::= * type-qualifier-list? pointer?
+  // pointer ::= * type-qualifier* pointer?
   Type* visitPointer(Pointer* n, Type* typ_prefix)
   {
     Type* typ = typ_prefix->pointer_to();
@@ -358,18 +365,18 @@ public:
     return typ;
   }
 
-  // initializer ::= assignment-expression
-  //              | { initializer-list ,? }
   // initializer-list ::= designation? initializer (, designation? initializer)*
+  // initializer ::= assignment-expression
+  //              | { initializer-list ','? }
+  // designation ::= (designator)+ '='
+  // designator ::= . IDENTIFIER |  [ expression ]
   void visitInitializer(Initializer* n, Symbol* sym)
   {
-    if (isa<ExpressionInitializer>(n)) {
-      auto ei = cast<ExpressionInitializer>(n);
+    if (auto ei = dyn_cast<ExpressionInitializer>(n)) {
       Imm* val = ei->expr->evalConst(scopes);
-      sym->setValue(val);
+      sym->setValue(new Value(val));
       out->writeComment("initialize %s", sym->getName());
       out->writeAssign(new Value(sym), new Value(val));
-
     } else if (isa<NestedInitializer>(n)) {
       // auto in = cast<NestedInitializer>(n);
       // for (auto init : *in->initializers) {
@@ -379,10 +386,12 @@ public:
     } else {
       assert(0);
     }
+
+    // TODO: handle n.designation
+    // emit code for initialization
   }
 
   // declarator ::= pointer? direct-declarator
-  // Declarator with optional pointer
   Symbol* visitDecl(Declarator* n, Type* typ_prefix)
   {
     Type* typ = typ_prefix;
@@ -393,40 +402,39 @@ public:
   }
 
   // abstract-declarator ::= pointer? direct-abstract-declarator?
-  Symbol* visitDecl(AbstractDeclarator* n, Type* typ_prefix)
+  // ..Abstract declarator is anonymous declarator.
+  // ..Note that the direct-abstract-declarator may not exist.
+  Type* visitAbstDecl(AbstractDeclarator* n, Type* typ_prefix)
   {
     Type* typ = typ_prefix;
     if (n->pointer)
       typ = visitPointer(n->pointer, typ);
-    if (n->decl)
-      return visitDirectDecl(n->decl, typ);
-    // anonymous variable
-    Symbol* sym = new Symbol(SK_VARIABLE, nullptr);
-    sym->setType(typ);
-    return sym;
+
+    if (!n->decl)
+      return typ;
+
+    return visitDirectAbstDecl(n->decl, typ);
   }
+
   // direct-declarator ::= identifier
   //                    | ( declarator )
-  //                    | direct-declarator [ constant-expression? ]
-  //                    | direct-declarator ( )
-  //                    | direct-declarator ( parameter-type-list )
-  //                    | direct-declarator ( identifier-list )
+  //                    | direct-declarator [ static? type-qualifier* expression? ]
+  //                    | direct-declarator [ type-qualifier* '*'? ]
+  //                    | direct-declarator ( parameter-type-list? )
+  //                    | direct-declarator ( identifier-list )    // Old K&R style
   Symbol* visitDirectDecl(DirectDeclarator* n, Type* typ_prefix)
   {
-    if (isa<IdentifierDeclarator>(n)) {
-      auto ident = cast<IdentifierDeclarator>(n);
-      auto sym = new Symbol(SK_VARIABLE, ident->name());
+    if (auto ident = dyn_cast<IdentifierDeclarator>(n)) {
+      auto sym = new Symbol(SY_VARIABLE, ident->name());
       sym->setType(typ_prefix);
       return sym;
     }
 
-    if (isa<ParenthesizedDeclarator>(n)) {
-      auto pdecl = cast<ParenthesizedDeclarator>(n);
+    if (auto pdecl = dyn_cast<ParenthesizedDeclarator>(n)) {
       return visitDecl(pdecl->decl, typ_prefix);
     }
 
-    if (isa<ArrayDeclarator>(n)) {
-      auto adecl = cast<ArrayDeclarator>(n);
+    if (auto adecl = dyn_cast<ArrayDeclarator>(n)) {
       int arr_siz = -1;
       if (adecl->expr) {
         assert(adecl->expr->isConst());
@@ -438,120 +446,92 @@ public:
       return visitDirectDecl(adecl->decl, typ);
     }
 
-    // else FunctionDeclarator
-    auto fdecl = cast<FunctionDeclarator>(n);
-    auto typ = typ_prefix->func_type();
+    if (auto fdecl = dyn_cast<FunctionDeclarator>(n)) {
+      auto typ = typ_prefix->func_type();
 
-    if (fdecl->kind == FunctionDeclarator::D_NORMAL) {
-      // capture function parameters in a new scope
-      scopes.enter(Scope::LOCAL);
-      for (auto param : *fdecl->params)
-        param->accept(this);
-      // TODO: handle fdecl->params->varargs
-      Scope* top = scopes.getCurrent();
-      scopes.leave();
-      typ->params = std::move(top->getSymbols());
-      delete top;
-    } else {   // OLD STYLE
-      if (fdecl->oldStyleParams) {
+      if (fdecl->params) {
+        parseParams(fdecl->params, &typ->params);
+        typ->hasEllipsis = fdecl->params->hasEllipsis;
+      } else {   // old style params
         // TODO: check matching with function prototype
       }
+
+      return visitDirectDecl(fdecl->decl, typ);
     }
 
-    return visitDirectDecl(fdecl->decl, typ);
+    assert(false);
   }
 
   // direct-abstract-declarator ::= ( abstract-declarator )
-  //                              | [ constant-expression? ]
-  //                              | direct-abstract-declarator [ constant-expression? ]
-  //                              | direct-abstract-declarator ( )
-  //                              | direct-abstract-declarator ( parameter-type-list )
-  Symbol* visitDirectDecl(AbstractDirectDeclarator* n, Type* typ_prefix)
+  //                             | direct-abstract-declarator? [ '*'? ]
+  //                             | direct-abstract-declarator? [ static? type-qualifier*
+  //                                                             expression? ]
+  //                             | direct-abstract-declarator? ( parameter-type-list? )
+  // ..Abstract declarator: No identifier allowed, Base declarator is optional.
+  Type* visitDirectAbstDecl(AbstractDirectDeclarator* n, Type* typ_prefix)
   {
-    if (isa<AbstractParenthesizedDeclarator>(n)) {
-      auto pdecl = cast<AbstractParenthesizedDeclarator>(n);
-
-      return visitDecl(pdecl->decl, typ_prefix);
+    if (auto pdecl = dyn_cast<AbstractParenthesizedDeclarator>(n)) {
+      return visitAbstDecl(pdecl->decl, typ_prefix);
     }
 
-    if (isa<AbstractArrayDeclarator>(n)) {
-      auto adecl = cast<AbstractArrayDeclarator>(n);
+    if (auto adecl = dyn_cast<AbstractArrayDeclarator>(n)) {
       int arr_siz = -1;
+
       if (adecl->expr) {
         assert(adecl->expr->isConst());
         Imm* v = adecl->expr->evalConst(scopes);
         assert(v->getType()->is_integer());
         arr_siz = v->getInt();
       }
+
       auto typ = typ_prefix->array_of(arr_siz);
 
-      if (adecl->decl)
-        return visitDirectDecl(adecl->decl, typ);
+      for (auto tq : *adecl->typeQualifierList)
+        setTypeQualifiers(typ, tq);
 
-      // anonymous variable
-      Symbol* sym = new Symbol(SK_VARIABLE, nullptr);
-      sym->setType(typ);
-      return sym;
+      if (!adecl->decl)
+        return typ;
+
+      return visitDirectAbstDecl(adecl->decl, typ);
     }
 
-    // AbstractFunctionDeclarator
-    auto fdecl = cast<AbstractFunctionDeclarator>(n);
-    auto typ = typ_prefix->func_type();
+    if (auto fdecl = dyn_cast<AbstractFunctionDeclarator>(n)) {
+      auto typ = typ_prefix->func_type();
 
-    if (fdecl->params->size()) {
-      scopes.enter(Scope::LOCAL);
-      for (auto param : *fdecl->params)
-        param->accept(this);
+      if (fdecl->params->size()) {
+        parseParams(fdecl->params, &typ->params);
+        typ->hasEllipsis = fdecl->params->hasEllipsis;
+      }
 
-      Scope* top = scopes.getCurrent();
-      scopes.leave();
+      if (!fdecl->decl)
+        return typ;
 
-      typ->params = std::move(top->getSymbols());
-      delete top;
+      return visitDirectAbstDecl(fdecl->decl, typ);
     }
 
-    if (fdecl->decl)
-      return visitDirectDecl(fdecl->decl, typ);
-
-    // anonymous variable
-    Symbol* sym = new Symbol(SK_VARIABLE, nullptr);
-    sym->setType(typ);
-    return sym;
+    assert(false);
   }
-
-  void visit(AbstractDirectDeclarator* n) {}
-  void visit(AbstractParenthesizedDeclarator* n) {}
-  void visit(AbstractArrayDeclarator* n) {}
-  void visit(AbstractDeclarator* n) {}
-  void visit(AbstractFunctionDeclarator* n) {}
-  void visit(AbstractParameterDeclaration* n)
-  {
-    Type* typ = parseFullSpecs(n->declSpecs);
-    Symbol* sym = visitDecl(n->decl, typ);
-    scopes.add(sym);
-  }
-  void visit(AnonymousParameterDeclaration* n)
-  {
-    Type* typ = parseFullSpecs(n->declSpecs);
-    Symbol* sym = new Symbol(SK_VARIABLE, nullptr);
-    sym->setType(typ);
-    scopes.add(sym);
-  }
-  void visit(ArrayDeclarator* n) {}
 
   void visit(BreakStatement* n)
   {
-    out->writeBreak();
+    Symbol* scope = scopes.findSymbol(nullptr, SY_BREAK);
+    if (!scope) {
+      std::cerr << "error: break statement not within a loop or switch\n";
+      exit(1);
+    }
+
+    out->writeJump(scope->getName());
   }
 
   void visit(CaseStatement* n)
   {
-    std::string label = "case" + std::to_string(labelCounter++);
+    std::string label = ".case" + std::to_string(labelCounter++);
+
     assert(n->expr->isConst());
     auto val = n->expr->evalConst(scopes);
 
-    auto labsym = new Symbol(SK_CASE_LABEL, label.c_str());
-    labsym->setValue(val);
+    auto labsym = new Symbol(SY_CASE_LABEL, label.c_str());
+    labsym->setValue(new Value(val));
     scopes.add(labsym);
 
     out->writeLabel(label.c_str());
@@ -561,13 +541,13 @@ public:
 
   void visit(ContinueStatement* n)
   {
-    Scope* loopScope = scopes.find(Scope::LOOP);
-    if (!loopScope) {
+    Symbol* cont = scopes.findSymbol(nullptr, SY_CONTINUE);
+    if (!cont) {
       std::cerr << "error: continue statement not within a loop\n";
       exit(1);
     }
 
-    out->writeContinue();
+    out->writeJump(cont->getName());
   }
 
   // compound-statement ::= { block-item-list? }
@@ -575,7 +555,7 @@ public:
   // block-item ::= declaration | statement
   void visit(CompoundStatement* n)
   {
-    scopes.enter(Scope::LOCAL);
+    scopes.enter(SC_LOCAL);
     for (auto stmt : n->blockItems)
       stmt->accept(this);
     scopes.leave();
@@ -583,33 +563,34 @@ public:
 
   void visit(DefaultStatement* n)
   {
-    std::string label = "default" + std::to_string(labelCounter++);
+    std::string label = ".default" + std::to_string(labelCounter++);
 
-    auto labsym = new Symbol(SK_DEFAULT_LABEL, label.c_str());
-    scopes.add(labsym);
+    scopes.add(new Symbol(SY_DEFAULT_LABEL, label.c_str()));
 
     out->writeLabel(label.c_str());
 
     n->stmt->accept(this);
   }
 
+  // DO statement WHILE '(' expression ')' ';'
   void visit(DoWhileStatement* n)
   {
-    std::string loopLabel = "loop" + std::to_string(labelCounter++);
-    std::string endLabel = "end" + std::to_string(labelCounter++);
+    std::string loopLabel = ".loop" + std::to_string(labelCounter++);
+    std::string endLabel = ".end" + std::to_string(labelCounter++);
+
+    scopes.add(new Symbol(SY_CONTINUE, loopLabel.c_str()));
+    scopes.add(new Symbol(SY_BREAK, endLabel.c_str()));
+
     out->writeLabel(loopLabel.c_str());
+
     n->body->accept(this);
+
     auto cond = n->cond->acceptExpr(this);
+
     out->writeJumpIfZero(cond, endLabel.c_str());
     out->writeJump(loopLabel.c_str());
     out->writeLabel(endLabel.c_str());
   }
-
-  void visit(Designation* n) {}
-
-  void visit(Enumerator* n) {}
-
-  void visit(ExpressionInitializer* n) {}
 
   // expression-statement ::= expression? ;
   void visit(ExpressionStatement* n)
@@ -617,8 +598,6 @@ public:
     if (n->expr)
       n->expr->acceptExpr(this);
   }
-
-  void visit(FieldDesignator* n) {}
 
   // function-definition ::= declaration-specifiers declarator declaration-list? compound-statement
   void visit(FunctionDefinition* n)
@@ -629,7 +608,7 @@ public:
     auto sym = visitDecl(n->decl, retTypePrefix);
     scopes.add(sym);
 
-    scopes.enter(Scope::FUNCTION);
+    scopes.enter(SC_FUNCTION);
 
     if (n->oldStyleParams) {
       // parse function parameters in K&R style
@@ -655,18 +634,20 @@ public:
 
   void visit(ForStatement* n)
   {
-    scopes.enter(Scope::LOCAL);
-
     // for (decl; cond; inc) body
     if (n->decl)
       n->decl->accept(this);
     else if (n->init)
       n->init->accept(this);
 
-    std::string loopLabel = "loop" + std::to_string(labelCounter++);
-    std::string endLabel = "end" + std::to_string(labelCounter++);
+    std::string loopLabel = ".loop" + std::to_string(labelCounter++);
+    std::string endLabel = ".end" + std::to_string(labelCounter++);
+
+    scopes.add(new Symbol(SY_CONTINUE, loopLabel.c_str()));
+    scopes.add(new Symbol(SY_BREAK, endLabel.c_str()));
 
     out->writeLabel(loopLabel.c_str());
+
     if (n->cond) {
       auto cond = n->cond->acceptExpr(this);
       out->writeJumpIfZero(cond, endLabel.c_str());
@@ -678,8 +659,6 @@ public:
     n->body->accept(this);
 
     out->writeJump(loopLabel.c_str());
-
-    scopes.leave();
   }
 
   void visit(GenericAssociation* n) {}
@@ -688,11 +667,12 @@ public:
 
   void visit(GotoStatement* n)
   {
-    auto sym = scopes.find(n->label);
+    auto sym = scopes.findSymbol(n->label, SY_LABEL);
     if (!sym) {
       std::cerr << "error: undefined label " << n->label << std::endl;
       exit(1);
     }
+
     out->writeJump(n->label);
   }
 
@@ -715,30 +695,37 @@ public:
 
   void visit(LabeledStatement* n)
   {
-    scopes.add(new Symbol(SK_LABEL, n->label));
+    scopes.add(new Symbol(SY_LABEL, n->label));
     out->writeLabel(n->label);
 
     n->stmt->accept(this);
   }
 
-  void visit(ParameterDeclaration* n)
-  {
-    Type* typ = parseFullSpecs(n->declSpecs);
-    Symbol* sym = visitDecl(n->decl, typ);
-    scopes.add(sym);
-  }
-
-  // parameter-type-list ::= parameter-list
-  //                       | parameter-list , ...
   // parameter-list ::= parameter-declaration (, parameter-declaration)*
-  void visit(ParameterList* n)
+  // parameter-declaration ::= declaration_specifiers (declarator | abstract_declarator)?
+  void parseParams(ParameterList* n, std::vector<Symbol*>* out)
   {
-    for (auto param : n->params)
-      param->accept(this);
-    // TODO: handle varargs
-  }
+    for (auto param : n->params) {
+      Symbol* sym = nullptr;
 
-  void visit(ParenthesizedDeclarator* n) {}
+      // Kindly note: C disallow define new types in func params.
+      Type* typ = parseFullSpecs(param->declSpecs);
+
+      assert(!(param->decl && param->decl));   // cannot both
+
+      if (param->decl)
+        sym = visitDecl(param->decl, typ);
+      else {
+        if (param->adecl)
+          typ = visitAbstDecl(param->adecl, typ);
+
+        sym = new Symbol(SY_ABSTRACT_VARIABLE, nullptr);
+        sym->setType(typ);
+      }
+
+      out->push_back(sym);
+    }
+  }
 
   void visit(ReturnStatement* n)
   {
@@ -752,31 +739,40 @@ public:
 
   void visit(SwitchStatement* n)
   {
-    auto cond = n->cond->acceptExpr(this);
-    std::string endLabel = "end" + std::to_string(labelCounter++);
-    std::string caseLabel = "case" + std::to_string(labelCounter++);
+    Value* cond = n->cond->acceptExpr(this);
 
-    out->writeJump(caseLabel.c_str());
+    Symbol* switchVar = new Symbol(SY_VARIABLE, nullptr);
+    switchVar->setType(cond->sym->typ);
+    switchVar->setValue(cond);
 
-    scopes.enter(Scope::SWITCH);
+    scopes.enter(SC_SWITCH);
+    scopes.add(switchVar);
     n->body->accept(this);
     scopes.leave();
-
-    out->writeLabel(endLabel.c_str());
   }
 
   void visit(WhileStatement* n)
   {
-    std::string loopLabel = "loop" + std::to_string(labelCounter++);
-    std::string endLabel = "end" + std::to_string(labelCounter++);
+    std::string loopLabel = ".loop" + std::to_string(labelCounter++);
+    std::string endLabel = ".end" + std::to_string(labelCounter++);
+
+    scopes.add(new Symbol(SY_CONTINUE, loopLabel.c_str()));
+    scopes.add(new Symbol(SY_BREAK, endLabel.c_str()));
+
     out->writeLabel(loopLabel.c_str());
+
     Value* cond = n->cond->acceptExpr(this);
+
     out->writeJumpIfZero(cond, endLabel.c_str());
+
     n->body->accept(this);
+
     out->writeJump(loopLabel.c_str());
     out->writeLabel(endLabel.c_str());
   }
 
+  // enum-specifier ::= 'enum' IDENTIFIER? ('{' enumerator (, enumerator)?'}')?
+  // enumerator ::= IDENTIFIER '=' constant-expression
   Type* parseEnum(EnumTypeSpecifier* n)
   {
     Type* typ = Type::enum_type();
@@ -786,7 +782,10 @@ public:
     }
 
     if (n->enumerators) {
-      for (auto enumerator : *n->enumerators) {}
+      for (auto enumerator : *n->enumerators) {
+        Symbol* sym = new Symbol(SY_ENUMERATION_CONSTANT, enumerator->identifier->name);
+        scopes.add(sym);
+      }
     }
 
     return typ;
@@ -838,10 +837,7 @@ public:
   //                            | type-qualifier specifier-qualifier-list?
   Type* parseSpecs(SpecifierQualifierList* n)
   {
-    std::vector<DeclarationSpecifier*> specs;
-    for (auto i : n->specs)
-      specs.push_back(i);
-    return __parseFullSpecs(specs);
+    return parseFullSpecs(std::vector<DeclarationSpecifier*>{n->specs.begin(), n->specs.end()});
   }
 
   // declaration-specifiers ::= storage-class-specifier declaration-specifiers?
@@ -854,17 +850,34 @@ public:
   //                  | enum-specifier | typedef-name
   Type* parseFullSpecs(DeclarationSpecifierList* n)
   {
-    return __parseFullSpecs(n->specs);
+    return parseFullSpecs(n->specs);
   }
 
-  Type* __parseFullSpecs(const std::vector<DeclarationSpecifier*>& specs)
+  static void setTypeQualifiers(Type* typ, TypeQualifier* q)
+  {
+    switch (q->typeQualifier) {
+      case TypeQualifier::CONST:
+        typ->is_const = true;
+        break;
+      case TypeQualifier::RESTRICT:
+        typ->is_restrict = true;
+        break;
+      case TypeQualifier::VOLATILE:
+        typ->is_volatile = true;
+        break;
+      case TypeQualifier::ATOMIC:
+        typ->is_atomic = true;
+        break;
+    }
+  }
+
+  Type* parseFullSpecs(const std::vector<DeclarationSpecifier*>& specs)
   {
     Type* typ = nullptr;
     int signedness = -1;
 
     for (auto s : specs) {
-      if (isa<TypeSpecifier>(s)) {
-        auto ts = cast<TypeSpecifier>(s);
+      if (auto ts = dyn_cast<TypeSpecifier>(s)) {
         if (isa<BuiltinTypeSpecifier>(ts)) {
           auto bts = cast<BuiltinTypeSpecifier>(ts);
           switch (bts->type) {
@@ -922,24 +935,9 @@ public:
           // TODO
           assert(false);
         }
-      } else if (isa<TypeQualifier>(s)) {
-        auto tq = cast<TypeQualifier>(s);
-        switch (tq->typeQualifier) {
-          case TypeQualifier::CONST:
-            typ->is_const = true;
-            break;
-          case TypeQualifier::RESTRICT:
-            typ->is_restrict = true;
-            break;
-          case TypeQualifier::VOLATILE:
-            typ->is_volatile = true;
-            break;
-          case TypeQualifier::ATOMIC:
-            typ->is_atomic = true;
-            break;
-        }
-      } else if (isa<StorageClassSpecifier>(s)) {
-        auto scs = cast<StorageClassSpecifier>(s);
+      } else if (auto tq = dyn_cast<TypeQualifier>(s)) {
+        setTypeQualifiers(typ, tq);
+      } else if (auto scs = dyn_cast<StorageClassSpecifier>(s)) {
         switch (scs->storageClass) {
           case StorageClassSpecifier::TYPEDEF:
             typ->is_typedef = true;
@@ -960,11 +958,9 @@ public:
             typ->is_register = true;
             break;
         }
-      } else if (isa<AlignmentSpecifier>(s)) {
-        auto as = cast<AlignmentSpecifier>(s);
+      } else if (auto as = dyn_cast<AlignmentSpecifier>(s)) {
         // TODO
-      } else {   // FunctionSpecifier
-        auto fs = cast<FunctionSpecifier>(s);
+      } else if (auto fs = dyn_cast<FunctionSpecifier>(s)) {
         switch (fs->functionSpecifier) {
           case FunctionSpecifier::INLINE:
             typ->is_inline = true;
@@ -973,6 +969,8 @@ public:
             typ->is_noreturn = true;
             break;
         }
+      } else {
+        assert(false);
       }
     }
 
@@ -992,6 +990,15 @@ public:
     return typ;
   }
 
+  // type-name ::= specifier-qualifier-list abstract-declarator?
+  Type* parseTypeName(TypeName* n)
+  {
+    Type* typ = parseSpecs(n->declSpecs);
+    if (n->adecl)
+      typ = visitAbstDecl(n->adecl, typ);
+    return typ;
+  }
+
   // declaration ::= declaration-specifiers init-declarator-list? ;
   // init-declarator-list ::= init-declarator (, init-declarator)*
   // init-declarator ::= declarator (= initializer)?
@@ -1001,7 +1008,7 @@ public:
 
     if (typ->is_aggregate()) {
       // declare a struct/union/enum type
-      Symbol* typsym = new Symbol(SK_TYPEDEF, typ->getName());
+      Symbol* typsym = new Symbol(SY_TYPEDEF, typ->getName());
       typsym->setType(typ);
       scopes.add(typsym);
     }
@@ -1014,7 +1021,7 @@ public:
 
         sym->place = (scopes.getCurrent()->stack_size += sym->getType()->getSize());
 
-        // Initializer: { 1, 2, 3 }
+        // initial value
         if (initDecl->initializer) {
           // only variable can have initializer
           if (sym->getType()->is_function())
@@ -1022,6 +1029,7 @@ public:
 
           visitInitializer(initDecl->initializer, sym);
         }
+
         scopes.add(sym);
       }
     }
@@ -1030,7 +1038,7 @@ public:
   // translation-unit ::= external-declaration (external-declaration)*
   void visit(TranslationUnit* n)
   {
-    scopes.enter(Scope::GLOBAL);
+    scopes.enter(SC_GLOBAL);
     for (auto decl : n->decls)
       decl->accept(this);
   }

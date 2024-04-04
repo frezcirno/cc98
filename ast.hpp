@@ -12,10 +12,8 @@ class AbstractDeclarator;
 class AbstractDeclarator;
 class AbstractDirectDeclarator;
 class AbstractFunctionDeclarator;
-class AbstractParameterDeclaration;
 class AbstractParenthesizedDeclarator;
 class AlignmentSpecifier;
-class AnonymousParameterDeclaration;
 class ArithmeticExpression;
 class ArrayDeclarator;
 class AssignmentExpression;
@@ -101,10 +99,8 @@ public:
   virtual void visit(AbstractArrayDeclarator* n) {}
   virtual void visit(AbstractDeclarator* n) {}
   virtual void visit(AbstractFunctionDeclarator* n) {}
-  virtual void visit(AbstractParameterDeclaration* n) {}
   virtual void visit(AbstractParenthesizedDeclarator* n) {}
   virtual void visit(AlignmentSpecifier* n) {}
-  virtual void visit(AnonymousParameterDeclaration* n) {}
   virtual void visit(ArithmeticExpression* n) {}
   virtual void visit(ArrayDeclarator* n) {}
   virtual void visit(AssignmentExpression* n) {}
@@ -422,8 +418,8 @@ public:
 
   Imm* evalConst(const ScopeManager& scopes) const override
   {
-    Symbol* sym = scopes.find(_enum, SymbolKind::SK_ENUMERATION_CONSTANT);
-    return sym->val;
+    Symbol* sym = scopes.findSymbol(_enum, SY_ENUMERATION_CONSTANT);
+    return sym->val->imm;
   }
 
   Value* acceptExpr(Visitor* visitor) override
@@ -490,8 +486,8 @@ public:
 
   Imm* evalConst(const ScopeManager& scopes) const override
   {
-    const char* name = scopes.find("__func__", SymbolKind::SK_FUNCTION)->getName();
-    return new Imm(name, ty_char.array_of(strlen(name)));
+    const std::string& name = scopes.findScope(SC_FUNCTION)->getName();
+    return new Imm(name.c_str(), ty_char.array_of(name.size()));
   }
 
   Value* acceptExpr(Visitor* visitor) override
@@ -1864,17 +1860,6 @@ public:
   virtual const char* name() const = 0;
 };
 
-class ParameterDeclarationBase : public Node
-{
-protected:
-  ParameterDeclarationBase(DeclarationSpecifierList* declarationSpecifierList)
-    : declSpecs(declarationSpecifierList)
-  {}
-
-public:
-  DeclarationSpecifierList* declSpecs;
-};
-
 class ParameterList : public Node
 {
 public:
@@ -1899,7 +1884,7 @@ public:
     return params.size() + hasEllipsis;
   }
 
-  void push_back(ParameterDeclarationBase* parameterDeclaration)
+  void push_back(ParameterDeclaration* parameterDeclaration)
   {
     params.push_back(parameterDeclaration);
   }
@@ -1915,7 +1900,7 @@ public:
   }
 
 public:
-  std::vector<ParameterDeclarationBase*> params;
+  std::vector<ParameterDeclaration*> params;
   bool hasEllipsis;
 };
 
@@ -1998,24 +1983,17 @@ public:
 class FunctionDeclarator : public DirectDeclarator
 {
 public:
-  enum FunctionDeclaratorKind
-  {
-    D_NORMAL,
-    D_OLD_STYLE,
-  };
-
-public:
   FunctionDeclarator(DirectDeclarator* declarator, ParameterList* parameterTypeList = nullptr)
     : DirectDeclarator()
-    , kind(D_NORMAL)
     , decl(declarator)
     , params(parameterTypeList ? parameterTypeList : new ParameterList())
+    , oldStyleParams(nullptr)
   {}
 
   FunctionDeclarator(DirectDeclarator* declarator, std::vector<const char*>* identifierList)
     : DirectDeclarator()
-    , kind(D_OLD_STYLE)
     , decl(declarator)
+    , params(nullptr)
     , oldStyleParams(identifierList ? identifierList : new std::vector<const char*>())
   {}
 
@@ -2030,13 +2008,9 @@ public:
   }
 
 public:
-  FunctionDeclaratorKind kind;
   DirectDeclarator* decl;
-  union
-  {
-    ParameterList* params;                      // NOT NULL
-    std::vector<const char*>* oldStyleParams;   // NOT NULL
-  };
+  ParameterList* params;
+  std::vector<const char*>* oldStyleParams;
 };
 
 class AbstractDeclarator : public Node
@@ -2142,12 +2116,26 @@ public:
   ParameterList* params;   // NOT NULL
 };
 
-class ParameterDeclaration : public ParameterDeclarationBase
+class ParameterDeclaration
 {
 public:
   ParameterDeclaration(DeclarationSpecifierList* declarationSpecifierList, Declarator* declarator)
-    : ParameterDeclarationBase(declarationSpecifierList)
+    : declSpecs(declarationSpecifierList)
     , decl(declarator)
+    , adecl(nullptr)
+  {}
+
+  ParameterDeclaration(DeclarationSpecifierList* declarationSpecifierList,
+                       AbstractDeclarator* declarator)
+    : declSpecs(declarationSpecifierList)
+    , decl(nullptr)
+    , adecl(declarator)
+  {}
+
+  ParameterDeclaration(DeclarationSpecifierList* declarationSpecifierList)
+    : declSpecs(declarationSpecifierList)
+    , decl(nullptr)
+    , adecl(nullptr)
   {}
 
   void accept(Visitor* visitor)
@@ -2156,38 +2144,9 @@ public:
   }
 
 public:
+  DeclarationSpecifierList* declSpecs;
   Declarator* decl;
-};
-
-class AbstractParameterDeclaration : public ParameterDeclarationBase
-{
-public:
-  AbstractParameterDeclaration(DeclarationSpecifierList* declarationSpecifierList,
-                               AbstractDeclarator* abstractDeclarator)
-    : ParameterDeclarationBase(declarationSpecifierList)
-    , decl(abstractDeclarator)
-  {}
-
-  void accept(Visitor* visitor)
-  {
-    visitor->visit(this);
-  }
-
-public:
-  AbstractDeclarator* decl;
-};
-
-class AnonymousParameterDeclaration : public ParameterDeclarationBase
-{
-public:
-  AnonymousParameterDeclaration(DeclarationSpecifierList* declarationSpecifierList)
-    : ParameterDeclarationBase(declarationSpecifierList)
-  {}
-
-  void accept(Visitor* visitor)
-  {
-    visitor->visit(this);
-  }
+  AbstractDeclarator* adecl;
 };
 
 class InitDeclarator : public Node
@@ -2266,7 +2225,7 @@ public:
   TypeName(SpecifierQualifierList* specifierQualifierList,
            AbstractDeclarator* abstractDeclarator = nullptr)
     : declSpecs(specifierQualifierList)
-    , abstractDeclarator(abstractDeclarator)
+    , adecl(abstractDeclarator)
   {}
 
   void accept(Visitor* visitor)
@@ -2276,7 +2235,7 @@ public:
 
 public:
   SpecifierQualifierList* declSpecs;
-  AbstractDeclarator* abstractDeclarator;
+  AbstractDeclarator* adecl;
 };
 
 class GenericAssociation : public Node
