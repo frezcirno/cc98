@@ -1,6 +1,4 @@
 #pragma once
-#include <cstdint>
-#include <fstream>
 #include <iostream>
 #include <memory>
 #include <ostream>
@@ -177,18 +175,19 @@ public:
   }
 
   /**
-   * Generate code for op two values, and return the new value
+   * Generate code for op two values, and return the std::make_shared<Value>
    *
    * If both values are immediate, the result is immediate
    * The now value may reuse op1 or op2 if they are rvalues
    */
-  Value* writeArithOrdered(const char* op, Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeArithOrdered(const char* op, std::shared_ptr<Value> lhs,
+                                           std::shared_ptr<Value> rhs)
   {
     // mov lhs, %rax
     // add rhs, %rax
     // return Value(%rax)
 
-    Value* r = moveToFreeRegister(lhs);
+    std::shared_ptr<Value> r = moveToFreeRegister(lhs);
 
     if (rhs->isImmediate())
       writef(WriteTarget::TEXT,
@@ -212,95 +211,95 @@ public:
     return r;
   }
 
-  Value* writeAdd(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeAdd(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
     return writeArithOrdered("add", lhs, rhs);
   }
 
-  Value* writeSub(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeSub(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
     return writeArithOrdered("sub", lhs, rhs);
   }
 
-  Value* writeMul(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeMul(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
     return writeArithOrdered("imul", lhs, rhs);
   }
 
-  Value* writeDiv(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeDiv(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
     return writeArithOrdered("idiv", lhs, rhs);
   }
 
-  Value* writeMod(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeMod(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
     return writeArithOrdered("mod", lhs, rhs);
   }
 
-  Value* writeAnd(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeAnd(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
     return writeArithOrdered("and", lhs, rhs);
   }
 
-  Value* writeOr(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeOr(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
     return writeArithOrdered("or", lhs, rhs);
   }
 
-  Value* writeXor(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeXor(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
     return writeArithOrdered("xor", lhs, rhs);
   }
 
-  Value* writeShl(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeShl(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
     return writeArithOrdered("shl", lhs, rhs);
   }
 
-  Value* writeShr(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeShr(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
     return writeArithOrdered("shr", lhs, rhs);
   }
 
-  Value* writeCmpLt(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeCmpLt(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
-    Value* r = writeArithOrdered("cmp", lhs, rhs);
+    std::shared_ptr<Value> r = writeArithOrdered("cmp", lhs, rhs);
     writef(WriteTarget::TEXT, "setl %s\n", r->getRegister()->getName());   // set if less
     return r;
   }
 
-  Value* writeCmpGt(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeCmpGt(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
-    Value* r = writeArithOrdered("cmp", lhs, rhs);
+    std::shared_ptr<Value> r = writeArithOrdered("cmp", lhs, rhs);
     writef(WriteTarget::TEXT, "setg %s\n", r->getRegister()->getName());   // set if greater
     return r;
   }
 
-  Value* writeCmpLe(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeCmpLe(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
-    Value* r = writeArithOrdered("cmp", lhs, rhs);
+    std::shared_ptr<Value> r = writeArithOrdered("cmp", lhs, rhs);
     writef(WriteTarget::TEXT, "setle %s\n", r->getRegister()->getName());   // set if less or equal
     return r;
   }
 
-  Value* writeCmpGe(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeCmpGe(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
-    Value* r = writeArithOrdered("cmp", lhs, rhs);
+    std::shared_ptr<Value> r = writeArithOrdered("cmp", lhs, rhs);
     writef(
       WriteTarget::TEXT, "setge %s\n", r->getRegister()->getName());   // set if greater or equal
     return r;
   }
 
-  Value* writeCmpEq(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeCmpEq(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
-    Value* r = writeArithOrdered("cmp", lhs, rhs);
+    std::shared_ptr<Value> r = writeArithOrdered("cmp", lhs, rhs);
     writef(WriteTarget::TEXT, "sete %s\n", r->getRegister()->getName());   // set if equal
     return r;
   }
 
-  Value* writeCmpNe(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeCmpNe(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
-    Value* r = writeArithOrdered("cmp", lhs, rhs);
+    std::shared_ptr<Value> r = writeArithOrdered("cmp", lhs, rhs);
     writef(WriteTarget::TEXT, "setne %s\n", r->getRegister()->getName());   // set if not equal
     return r;
   }
@@ -308,9 +307,9 @@ public:
   /**
    * negate x = -x
    */
-  Value* writeNeg(Value* lhs)
+  std::shared_ptr<Value> writeNeg(std::shared_ptr<Value> lhs)
   {
-    Value* r = moveToFreeRegister(lhs);
+    std::shared_ptr<Value> r = moveToFreeRegister(lhs);
     writef(WriteTarget::TEXT, "negq %s\n", r->getRegister()->getName());
     return r;
   }
@@ -321,12 +320,12 @@ public:
    *  0 otherwise
    * }
    */
-  Value* writeNot(Value* lhs)
+  std::shared_ptr<Value> writeNot(std::shared_ptr<Value> lhs)
   {
     // test %reg, %reg
     // sete %al
     // movzbl %al, %reg
-    Value* r = moveToFreeRegister(lhs);
+    std::shared_ptr<Value> r = moveToFreeRegister(lhs);
     writef(WriteTarget::TEXT,
            "testq %s, %s\n",
            r->getRegister()->getName(),
@@ -339,9 +338,9 @@ public:
   /**
    * reverse x = ~x
    */
-  Value* writeRev(Value* lhs)
+  std::shared_ptr<Value> writeRev(std::shared_ptr<Value> lhs)
   {
-    Value* r = moveToFreeRegister(lhs);
+    std::shared_ptr<Value> r = moveToFreeRegister(lhs);
     writef(WriteTarget::TEXT, "notq %s\n", r->getRegister()->getName());
     return r;
   }
@@ -349,9 +348,9 @@ public:
   /**
    * lhs = rhs
    * The lhs must be an lvalue
-   * Return the new value of lhs
+   * Return the std::make_shared<Value> of lhs
    */
-  Value* writeAssign(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeAssign(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
     assert(lhs->isLValue());
 
@@ -404,7 +403,7 @@ public:
    * If the value is in memory, load it into a register
    * If the value is in a register, return the register
    */
-  Value* moveToFreeRegister(Value* val)
+  std::shared_ptr<Value> moveToFreeRegister(std::shared_ptr<Value> val)
   {
     if (val->isRValue() && val->isInRegister())
       return val;
@@ -417,34 +416,34 @@ public:
     else
       writef(WriteTarget::TEXT, "movq %s, %s\n", val->getRegister()->getName(), reg->getName());
 
-    return new Value(reg);
+    return std::make_shared<Value>(reg);
   }
 
   /**
    * Dereference a value specified by lhs, i.e. *lhs
    */
-  Value* writeLoad(Value* lhs)
+  std::shared_ptr<Value> writeLoad(std::shared_ptr<Value> lhs)
   {
     if (lhs->isInMemory()) {
       // load to register: movq -%d(%%rbp), %reg
       // dereference: movq (%reg), %reg
       std::shared_ptr<Register> reg = allocateRegister();
       writef(WriteTarget::TEXT, "movq -%d(%%rbp), %s\n", lhs->sym->place, reg->getName());
-      return new Value(reg);
+      return std::make_shared<Value>(reg);
     } else if (lhs->isInRegister()) {
       // dereference: movq (%reg), %reg
       std::shared_ptr<Register> reg = (lhs->isRValue() ? lhs->getRegister() : allocateRegister());
       writef(WriteTarget::TEXT, "movq (%s), %s\n", lhs->getRegister()->getName(), reg->getName());
-      return new Value(reg);
+      return std::make_shared<Value>(reg);
     } else {   // immediate
       // dereference: movq -%d(%%rbp), %reg
       std::shared_ptr<Register> reg = allocateRegister();
       writef(WriteTarget::TEXT, "movq $%d, %s\n", lhs->getImm()->getInt(), reg->getName());
-      return new Value(reg);
+      return std::make_shared<Value>(reg);
     }
   }
 
-  Value* writeStore(Value* lhs, Value* rhs)
+  std::shared_ptr<Value> writeStore(std::shared_ptr<Value> lhs, std::shared_ptr<Value> rhs)
   {
     if (rhs->isLValue()) {
       // mov lhs, rhs
@@ -456,12 +455,12 @@ public:
     }
   }
 
-  void writeInc(Value* lhs)
+  void writeInc(std::shared_ptr<Value> lhs)
   {
     writef(WriteTarget::TEXT, "incl %s\n", lhs->getRegister()->getName());
   }
 
-  void writeDec(Value* lhs)
+  void writeDec(std::shared_ptr<Value> lhs)
   {
     writef(WriteTarget::TEXT, "decl %s\n", lhs->getRegister()->getName());
   }
@@ -471,7 +470,7 @@ public:
     writef(WriteTarget::TEXT, "jmp %s\n", label);
   }
 
-  void writeJumpIfZero(Value* lhs, const char* label)
+  void writeJumpIfZero(std::shared_ptr<Value> lhs, const char* label)
   {
     writef(WriteTarget::TEXT,
            "testl %s, %s\n",
@@ -491,7 +490,7 @@ public:
     writef(WriteTarget::TEXT, "ret\n");
   }
 
-  void writeReturn(Value* lhs)
+  void writeReturn(std::shared_ptr<Value> lhs)
   {
     // mov lhs, %rax
     if (lhs->isImmediate())
@@ -503,7 +502,8 @@ public:
     writeReturn();
   }
 
-  Value* writeCall(Value* fn, const std::vector<Value*>& args)
+  std::shared_ptr<Value> writeCall(std::shared_ptr<Value> fn,
+                                   const std::vector<std::shared_ptr<Value>>& args)
   {
     // push args
     // call fn
@@ -512,18 +512,18 @@ public:
     return nullptr;
   }
 
-  virtual Value* allocateStack(int size = 8)
+  virtual std::shared_ptr<Value> allocateStack(int size = 8)
   {
     return nullptr;
   }
 
-  virtual Value* getAddress(Value* val)
+  virtual std::shared_ptr<Value> getAddress(std::shared_ptr<Value> val)
   {
     assert(val->isLValue() && val->isInMemory());
     // leaq -%d(%%rbp), %reg
     std::shared_ptr<Register> reg = allocateRegister();
     writef(WriteTarget::TEXT, "leaq -%d(%%rbp), %s\n", val->sym->place, reg->getName());
-    return new Value(reg);
+    return std::make_shared<Value>(reg);
   }
 
   void writeComment(const char* fmt, ...)

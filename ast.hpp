@@ -3,9 +3,7 @@
 #include "backend.hpp"
 #include "type.hpp"
 #include <cassert>
-#include <iostream>
 #include <vector>
-#include <optional>
 
 class AbstractArrayDeclarator;
 class AbstractDeclarator;
@@ -172,112 +170,112 @@ public:
   virtual void visit(WhileStatement* n) {}
 
 
-  virtual Value* visitExpr(Identifier* n)
+  virtual std::shared_ptr<Value> visitExpr(Identifier* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(ConstantI* n)
+  virtual std::shared_ptr<Value> visitExpr(ConstantI* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(ConstantF* n)
+  virtual std::shared_ptr<Value> visitExpr(ConstantF* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(EnumerationConstantUse* n)
+  virtual std::shared_ptr<Value> visitExpr(EnumerationConstantUse* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(StringLiteral* n)
+  virtual std::shared_ptr<Value> visitExpr(StringLiteral* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(FuncName* n)
+  virtual std::shared_ptr<Value> visitExpr(FuncName* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(GenericSelection* n)
+  virtual std::shared_ptr<Value> visitExpr(GenericSelection* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(ParenthesizedExpression* n)
+  virtual std::shared_ptr<Value> visitExpr(ParenthesizedExpression* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(CommaExpression* n)
+  virtual std::shared_ptr<Value> visitExpr(CommaExpression* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(AssignmentExpression* n)
+  virtual std::shared_ptr<Value> visitExpr(AssignmentExpression* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(ConditionalExpression* n)
+  virtual std::shared_ptr<Value> visitExpr(ConditionalExpression* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(PostfixExpressionIncOp* n)
+  virtual std::shared_ptr<Value> visitExpr(PostfixExpressionIncOp* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(PostfixExpressionDecOp* n)
+  virtual std::shared_ptr<Value> visitExpr(PostfixExpressionDecOp* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(PostfixExpressionCallOp* n)
+  virtual std::shared_ptr<Value> visitExpr(PostfixExpressionCallOp* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(PostfixExpressionDotOp* n)
+  virtual std::shared_ptr<Value> visitExpr(PostfixExpressionDotOp* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(PostfixExpressionPtrOp* n)
+  virtual std::shared_ptr<Value> visitExpr(PostfixExpressionPtrOp* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(PostfixExpressionIndexOp* n)
+  virtual std::shared_ptr<Value> visitExpr(PostfixExpressionIndexOp* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(PostfixExpressionCastOp* n)
+  virtual std::shared_ptr<Value> visitExpr(PostfixExpressionCastOp* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(ArithmeticExpression* n)
+  virtual std::shared_ptr<Value> visitExpr(ArithmeticExpression* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(CastExpression* n)
+  virtual std::shared_ptr<Value> visitExpr(CastExpression* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(UnaryExpressionOnExpr* n)
+  virtual std::shared_ptr<Value> visitExpr(UnaryExpressionOnExpr* n)
   {
     return {};
   }
 
-  virtual Value* visitExpr(UnaryExpressionOnType* n)
+  virtual std::shared_ptr<Value> visitExpr(UnaryExpressionOnType* n)
   {
     return {};
   }
@@ -303,7 +301,7 @@ public:
     throw std::runtime_error("not a constant expression");
   }
 
-  virtual Value* acceptExpr(Visitor* visitor) = 0;
+  virtual std::shared_ptr<Value> acceptExpr(Visitor* visitor) = 0;
 };
 
 class PrimaryExpression : public Expression
@@ -322,7 +320,7 @@ public:
     visitor->visit(this);
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -354,7 +352,7 @@ public:
     return new Imm(val);
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -386,7 +384,7 @@ public:
     return new Imm(val);
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -422,7 +420,7 @@ public:
     return sym->val->imm;
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -457,7 +455,7 @@ public:
     return new Imm(val, ty_char.array_of(len));
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -490,7 +488,7 @@ public:
     return new Imm(name.c_str(), ty_char.array_of(name.size()));
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -519,7 +517,7 @@ public:
     return expr->evalConst(scopes);
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -573,7 +571,7 @@ public:
     return expr->evalConst(scopes);
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -619,7 +617,7 @@ public:
       return new Imm(0x5678);
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -692,7 +690,7 @@ public:
     return op == ASSIGN && rhs->isConst();
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -723,7 +721,7 @@ public:
     return cond->isConst() && then->isConst();   // TODO
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -747,7 +745,7 @@ public:
     visitor->visit(this);
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -769,7 +767,7 @@ public:
     visitor->visit(this);
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -793,7 +791,7 @@ public:
     visitor->visit(this);
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -817,7 +815,7 @@ public:
     visitor->visit(this);
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -841,7 +839,7 @@ public:
     visitor->visit(this);
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -876,7 +874,7 @@ public:
     return expr->evalConst(scopes)->index(off);
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -900,7 +898,7 @@ public:
     visitor->visit(this);
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -995,7 +993,7 @@ public:
     return lhs->isConst() && rhs->isConst();
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -1025,7 +1023,7 @@ public:
     return expr->isConst();
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }
@@ -2277,7 +2275,7 @@ public:
     return nullptr;
   }
 
-  Value* acceptExpr(Visitor* visitor) override
+  std::shared_ptr<Value> acceptExpr(Visitor* visitor) override
   {
     return visitor->visitExpr(this);
   }

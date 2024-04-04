@@ -1,5 +1,4 @@
 #pragma once
-#include <iostream>
 #include <memory>
 #include <vector>
 #include "type.hpp"
@@ -16,37 +15,56 @@ public:
   virtual void writeFunctionPrologue(Symbol* sym) = 0;
   virtual void writeFunctionEpilogue() = 0;
   virtual std::shared_ptr<Register> allocateRegister(int size = 8) = 0;
-  virtual Value* allocateStack(int size = 8) = 0;
-  virtual Value* writeAdd(Value* dest, Value* src) = 0;
-  virtual Value* writeSub(Value* dest, Value* src) = 0;
-  virtual Value* writeMul(Value* dest, Value* src) = 0;
-  virtual Value* writeDiv(Value* dest, Value* src) = 0;
-  virtual Value* writeMod(Value* dest, Value* src) = 0;
-  virtual Value* writeAnd(Value* dest, Value* src) = 0;
-  virtual Value* writeOr(Value* dest, Value* src) = 0;
-  virtual Value* writeXor(Value* dest, Value* src) = 0;
-  virtual Value* writeShl(Value* dest, Value* src) = 0;
-  virtual Value* writeShr(Value* dest, Value* src) = 0;
-  virtual Value* writeCmpLt(Value* dest, Value* src) = 0;
-  virtual Value* writeCmpGt(Value* dest, Value* src) = 0;
-  virtual Value* writeCmpLe(Value* dest, Value* src) = 0;
-  virtual Value* writeCmpGe(Value* dest, Value* src) = 0;
-  virtual Value* writeCmpEq(Value* dest, Value* src) = 0;
-  virtual Value* writeCmpNe(Value* dest, Value* src) = 0;
-  virtual Value* writeNeg(Value* dest) = 0;
-  virtual Value* writeNot(Value* dest) = 0;
-  virtual Value* writeRev(Value* dest) = 0;
+  virtual std::shared_ptr<Value> allocateStack(int size = 8) = 0;
+  virtual std::shared_ptr<Value> writeAdd(std::shared_ptr<Value> dest,
+                                          std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeSub(std::shared_ptr<Value> dest,
+                                          std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeMul(std::shared_ptr<Value> dest,
+                                          std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeDiv(std::shared_ptr<Value> dest,
+                                          std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeMod(std::shared_ptr<Value> dest,
+                                          std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeAnd(std::shared_ptr<Value> dest,
+                                          std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeOr(std::shared_ptr<Value> dest,
+                                         std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeXor(std::shared_ptr<Value> dest,
+                                          std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeShl(std::shared_ptr<Value> dest,
+                                          std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeShr(std::shared_ptr<Value> dest,
+                                          std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeCmpLt(std::shared_ptr<Value> dest,
+                                            std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeCmpGt(std::shared_ptr<Value> dest,
+                                            std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeCmpLe(std::shared_ptr<Value> dest,
+                                            std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeCmpGe(std::shared_ptr<Value> dest,
+                                            std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeCmpEq(std::shared_ptr<Value> dest,
+                                            std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeCmpNe(std::shared_ptr<Value> dest,
+                                            std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeNeg(std::shared_ptr<Value> dest) = 0;
+  virtual std::shared_ptr<Value> writeNot(std::shared_ptr<Value> dest) = 0;
+  virtual std::shared_ptr<Value> writeRev(std::shared_ptr<Value> dest) = 0;
   virtual void writeComment(const char* fmt, ...) = 0;
-  virtual Value* writeAssign(Value* dest, Value* src) = 0;
-  virtual Value* writeLoad(Value* dest) = 0;
-  virtual Value* writeStore(Value* dest, Value* src) = 0;
-  virtual Value* getAddress(Value* val) = 0;
-  virtual void writeInc(Value* dest) = 0;
+  virtual std::shared_ptr<Value> writeAssign(std::shared_ptr<Value> dest,
+                                             std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> writeLoad(std::shared_ptr<Value> dest) = 0;
+  virtual std::shared_ptr<Value> writeStore(std::shared_ptr<Value> dest,
+                                            std::shared_ptr<Value> src) = 0;
+  virtual std::shared_ptr<Value> getAddress(std::shared_ptr<Value> val) = 0;
+  virtual void writeInc(std::shared_ptr<Value> dest) = 0;
   virtual void writeJump(const char* label) = 0;
-  virtual void writeJumpIfZero(Value* dest, const char* label) = 0;
+  virtual void writeJumpIfZero(std::shared_ptr<Value> dest, const char* label) = 0;
   virtual void writeLabel(const char* label) = 0;
   virtual void writeReturn() = 0;
-  virtual void writeReturn(Value* dest) = 0;
-  virtual void writeDec(Value* dest) = 0;
-  virtual Value* writeCall(Value* fn, const std::vector<Value*>& args) = 0;
+  virtual void writeReturn(std::shared_ptr<Value> dest) = 0;
+  virtual void writeDec(std::shared_ptr<Value> dest) = 0;
+  virtual std::shared_ptr<Value> writeCall(std::shared_ptr<Value> fn,
+                                           const std::vector<std::shared_ptr<Value>>& args) = 0;
 };

@@ -326,12 +326,12 @@ public:
     typ = t;
   }
 
-  Value* getValue() const
+  std::shared_ptr<Value> getValue() const
   {
     return val;
   }
 
-  void setValue(Value* v)
+  void setValue(std::shared_ptr<Value> v)
   {
     val = v;
   }
@@ -365,7 +365,7 @@ public:
   std::string label;   // label name for the symbol
 
   // for VARIABLE, ENUM, FUNCTION
-  Value* val;   // value of the symbol
+  std::shared_ptr<Value> val;   // value of the symbol
 };
 
 class Register
@@ -468,7 +468,7 @@ public:
   Symbol* sym;   // the variable symbol if it's an lvalue
 
   // for Memory
-  Value* base;
+  std::shared_ptr<Value> base;
 
   // for Register
   std::shared_ptr<Register> reg;

@@ -4,6 +4,7 @@
 #include "type.hpp"
 #include <cassert>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -38,7 +39,7 @@ public:
 
 public:
   // arithmetic-expression ::= additive-expression arithmetic-operator arithmetic-expression
-  Value* visitExpr(ArithmeticExpression* n)
+  std::shared_ptr<Value> visitExpr(ArithmeticExpression* n)
   {
     auto lhs = n->lhs->acceptExpr(this);
     auto rhs = n->rhs->acceptExpr(this);
@@ -83,11 +84,11 @@ public:
   }
 
   // assignment-expression ::= unary-expression assignment-operator assignment-expression
-  Value* visitExpr(AssignmentExpression* n)
+  std::shared_ptr<Value> visitExpr(AssignmentExpression* n)
   {
-    Value* lhs = n->lhs->acceptExpr(this);
-    Value* rhs = n->rhs->acceptExpr(this);
-    Value* res;
+    std::shared_ptr<Value> lhs = n->lhs->acceptExpr(this);
+    std::shared_ptr<Value> rhs = n->rhs->acceptExpr(this);
+    std::shared_ptr<Value> res;
     switch (n->op) {
       case AssignmentExpression::ASSIGN:
         return out->writeAssign(lhs, rhs);
@@ -124,66 +125,72 @@ public:
     }
   }
 
-  Value* visitExpr(ConstantI* n)
+  std::shared_ptr<Value> visitExpr(ConstantI* n)
   {
-    return new Value(n->evalConst(scopes));
+    return std::make_shared<Value>(n->evalConst(scopes));
   }
 
-  Value* visitExpr(ConstantF* n)
+  std::shared_ptr<Value> visitExpr(ConstantF* n)
   {
-    return new Value(n->evalConst(scopes));
+    return std::make_shared<Value>(n->evalConst(scopes));
   }
 
   // cast-expression ::= ( type-name ) cast-expression
-  Value* visitExpr(CastExpression* n)
+  std::shared_ptr<Value> visitExpr(CastExpression* n)
   {
     // TODO: implement cast
     return n->expr->acceptExpr(this);
   }
 
   // comma-expression ::= assignment-expression , comma-expression
-  Value* visitExpr(CommaExpression* n)
+  std::shared_ptr<Value> visitExpr(CommaExpression* n)
   {
-    Value* dest = nullptr;
+    std::shared_ptr<Value> dest = nullptr;
     for (auto expr : n->exprs)
       dest = expr->acceptExpr(this);
     return dest;
   }
 
   // conditional-expression ::= logical-or-expression ? expression : conditional-expression
-  Value* visitExpr(ConditionalExpression* n)
+  std::shared_ptr<Value> visitExpr(ConditionalExpression* n)
   {
-    std::string elseLabel = "else" + std::to_string(labelCounter);
-    std::string endLabel = "end" + std::to_string(labelCounter++);
-    Value* dest = new Value(out->allocateRegister());
+    std::string elseLabel = ".else" + std::to_string(labelCounter);
+    std::string endLabel = ".end" + std::to_string(labelCounter++);
+    std::shared_ptr<Value> dest = std::make_shared<Value>(out->allocateRegister());
 
-    Value* cond = n->cond->acceptExpr(this);
-    out->writeJumpIfZero(cond, elseLabel.c_str());
+    {
+      std::shared_ptr<Value> cond = n->cond->acceptExpr(this);
+      out->writeJumpIfZero(cond, elseLabel.c_str());
+    }
 
-    Value* then = n->then->acceptExpr(this);
-    out->writeAssign(dest, then);
-    out->writeJump(endLabel.c_str());
+    {
+      std::shared_ptr<Value> then = n->then->acceptExpr(this);
+      out->writeAssign(dest, then);
+      out->writeJump(endLabel.c_str());
+    }
 
-    out->writeLabel(elseLabel.c_str());
-    Value* els = n->els->acceptExpr(this);
-    out->writeAssign(dest, els);
+    {
+      out->writeLabel(elseLabel.c_str());
+      std::shared_ptr<Value> els = n->els->acceptExpr(this);
+      out->writeAssign(dest, els);
+    }
 
     out->writeLabel(endLabel.c_str());
     return dest;
   }
 
-  Value* visitExpr(EnumerationConstantUse* n)
+  std::shared_ptr<Value> visitExpr(EnumerationConstantUse* n)
   {
-    return new Value(n->evalConst(scopes));
+    return std::make_shared<Value>(n->evalConst(scopes));
   }
 
-  Value* visitExpr(FuncName* n)
+  std::shared_ptr<Value> visitExpr(FuncName* n)
   {
-    return new Value(n->evalConst(scopes));
+    return std::make_shared<Value>(n->evalConst(scopes));
   }
 
   // primary-expression ::= ( expression )
-  Value* visitExpr(ParenthesizedExpression* n)
+  std::shared_ptr<Value> visitExpr(ParenthesizedExpression* n)
   {
     return n->expr->acceptExpr(this);
   }
@@ -191,12 +198,12 @@ public:
   // expression INC_OP
   // Return the value of the expression before increment
   // as an rvalue
-  Value* visitExpr(PostfixExpressionIncOp* n)
+  std::shared_ptr<Value> visitExpr(PostfixExpressionIncOp* n)
   {
-    Value* dest = n->expr->acceptExpr(this);
+    std::shared_ptr<Value> dest = n->expr->acceptExpr(this);
     assert(dest->isLValue() && "increment on rvalue");
 
-    Value* ret = new Value(out->allocateRegister());
+    std::shared_ptr<Value> ret = std::make_shared<Value>(out->allocateRegister());
     out->writeAssign(ret, dest);
 
     out->writeInc(dest);
@@ -204,28 +211,28 @@ public:
   }
 
   // expression DEC_OP
-  Value* visitExpr(PostfixExpressionDecOp* n)
+  std::shared_ptr<Value> visitExpr(PostfixExpressionDecOp* n)
   {
-    Value* dest = n->expr->acceptExpr(this);
+    std::shared_ptr<Value> dest = n->expr->acceptExpr(this);
     assert(dest->isLValue() && "decrement on rvalue");
 
-    Value* ret = new Value(out->allocateRegister());
+    std::shared_ptr<Value> ret = std::make_shared<Value>(out->allocateRegister());
     out->writeAssign(ret, dest);
 
     out->writeDec(dest);
     return ret;
   }
 
-  Value* visitExpr(PostfixExpressionCallOp* n)
+  std::shared_ptr<Value> visitExpr(PostfixExpressionCallOp* n)
   {
     auto fn = n->expr->acceptExpr(this);
-    std::vector<Value*> args;
+    std::vector<std::shared_ptr<Value>> args;
     for (auto arg : *n->args)
       args.push_back(arg->acceptExpr(this));
     return out->writeCall(fn, args);
   }
 
-  Value* visitExpr(PostfixExpressionDotOp* n)
+  std::shared_ptr<Value> visitExpr(PostfixExpressionDotOp* n)
   {
     auto dest = n->expr->acceptExpr(this);
     // TODO: handle struct member access
@@ -233,14 +240,14 @@ public:
     return dest;
   }
 
-  Value* visitExpr(PostfixExpressionPtrOp* n)
+  std::shared_ptr<Value> visitExpr(PostfixExpressionPtrOp* n)
   {
     auto dest = n->expr->acceptExpr(this);
     // TODO: handle struct member access
     return dest;
   }
 
-  Value* visitExpr(PostfixExpressionIndexOp* n)
+  std::shared_ptr<Value> visitExpr(PostfixExpressionIndexOp* n)
   {
     auto dest = n->expr->acceptExpr(this);
     auto index = n->index->acceptExpr(this);
@@ -254,7 +261,7 @@ public:
   //                      | postfix-expression -> identifier
   //                      | postfix-expression ++|--
   //                      | ( type-name ) { initializer-list }
-  Value* visitExpr(PostfixExpressionCastOp* n)
+  std::shared_ptr<Value> visitExpr(PostfixExpressionCastOp* n)
   {
     // TODO: implement cast
     throw std::runtime_error("not implemented");
@@ -265,9 +272,9 @@ public:
   //                            | -- expression
   //                            | &*+-!~ expression
   //                            | sizeof expression
-  Value* visitExpr(UnaryExpressionOnExpr* n)
+  std::shared_ptr<Value> visitExpr(UnaryExpressionOnExpr* n)
   {
-    Value* val = nullptr;
+    std::shared_ptr<Value> val = nullptr;
     switch (n->op) {
       case UnaryExpressionOnExpr::U_INC_OP:
         val = n->expr->acceptExpr(this);
@@ -302,7 +309,7 @@ public:
         break;
       case UnaryExpressionOnExpr::U_SIZEOF_OP:
         val = n->expr->acceptExpr(this);
-        val = new Value(new Imm(val->sym->typ->getSize()));
+        val = std::make_shared<Value>(new Imm(val->sym->typ->getSize()));
         break;
     }
     return val;
@@ -310,28 +317,29 @@ public:
 
   // unary-expression-on-type ::= sizeof ( type-name )
   //                           | alignof ( type-name )
-  Value* visitExpr(UnaryExpressionOnType* n)
+  std::shared_ptr<Value> visitExpr(UnaryExpressionOnType* n)
   {
     Type* typ = parseTypeName(n->typeName);
-    return new Value(new Imm((n->op == UnaryExpressionOnType::U_SIZEOF_OP ? typ->getSize() : 8)));
+    return std::make_shared<Value>(
+      new Imm((n->op == UnaryExpressionOnType::U_SIZEOF_OP ? typ->getSize() : 8)));
   }
 
-  Value* visitExpr(Identifier* n)
+  std::shared_ptr<Value> visitExpr(Identifier* n)
   {
     auto sym = scopes.findSymbol(n->name, SY_VARIABLE);
     if (!sym) {
       std::cerr << "error: undefined variable " << n->name << std::endl;
       exit(1);
     }
-    return new Value(sym);
+    return std::make_shared<Value>(sym);
   }
 
-  Value* visitExpr(StringLiteral* n)
+  std::shared_ptr<Value> visitExpr(StringLiteral* n)
   {
     std::string label = "str" + std::to_string(labelCounter++);
     out->writeGlobalData(label.c_str(), n->val);
     auto imm = n->evalConst(scopes);
-    return new Value(imm);
+    return std::make_shared<Value>(imm);
   }
 
   // pointer ::= * type-qualifier* pointer?
@@ -381,9 +389,9 @@ public:
   {
     if (auto ei = dyn_cast<ExpressionInitializer>(n)) {
       Imm* val = ei->expr->evalConst(scopes);
-      sym->setValue(new Value(val));
+      sym->setValue(std::make_shared<Value>(val));
       out->writeComment("%s = %d", sym->getName(), val->getInt());
-      out->writeAssign(new Value(sym), new Value(val));
+      out->writeAssign(std::make_shared<Value>(sym), std::make_shared<Value>(val));
     } else if (isa<NestedInitializer>(n)) {
       // auto in = cast<NestedInitializer>(n);
       // for (auto init : *in->initializers) {
@@ -538,7 +546,7 @@ public:
     auto val = n->expr->evalConst(scopes);
 
     auto labsym = new Symbol(SY_CASE_LABEL, label.c_str());
-    labsym->setValue(new Value(val));
+    labsym->setValue(std::make_shared<Value>(val));
     scopes.add(labsym);
 
     out->writeLabel(label.c_str());
@@ -689,9 +697,10 @@ public:
   {
     std::string elseLabel = ".else" + std::to_string(labelCounter++);
 
-    auto cond = n->cond->acceptExpr(this);
-    out->writeJumpIfZero(cond, elseLabel.c_str());
-
+    {
+      auto cond = n->cond->acceptExpr(this);
+      out->writeJumpIfZero(cond, elseLabel.c_str());
+    }
 
     n->then->accept(this);
 
@@ -749,7 +758,7 @@ public:
 
   void visit(SwitchStatement* n)
   {
-    Value* cond = n->cond->acceptExpr(this);
+    std::shared_ptr<Value> cond = n->cond->acceptExpr(this);
 
     Symbol* switchVar = new Symbol(SY_VARIABLE, nullptr);
     switchVar->setType(cond->sym->typ);
@@ -757,7 +766,10 @@ public:
 
     scopes.enter(SC_SWITCH);
     scopes.add(switchVar);
+    // TODO: handle switch statement
+
     n->body->accept(this);
+
     scopes.leave();
   }
 
@@ -771,9 +783,10 @@ public:
 
     out->writeLabel(loopLabel.c_str());
 
-    Value* cond = n->cond->acceptExpr(this);
-
-    out->writeJumpIfZero(cond, endLabel.c_str());
+    {
+      std::shared_ptr<Value> cond = n->cond->acceptExpr(this);
+      out->writeJumpIfZero(cond, endLabel.c_str());
+    }
 
     n->body->accept(this);
 
